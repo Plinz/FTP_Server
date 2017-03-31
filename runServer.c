@@ -11,20 +11,21 @@
 
 void echo(int connfd)
 {
-    size_t size, bufContentSize;
-    char buf[MAXLINE];
-    unsigned char *bufContent;
+    size_t bufContentSize;
+    char *bufContent;
     rio_t rio;
     int error = 0;
+
+    bufContent = (char*) malloc(MAXLINE);
     Rio_readinitb(&rio, connfd);
-    if ((size = Rio_readlineb(&rio, buf, MAXLINE)) != 0) {
-        printf("server received %u bytes && contenu : %s\n", (unsigned int)size, buf);
-    	buf[strlen(buf)-1]='\0';
-    	FILE *fp = fopen(buf, "r");
+    if ((bufContentSize = Rio_readlineb(&rio, bufContent, MAXLINE)) != 0) {
+        printf("server received %u bytes && contenu : %s\n", (unsigned int)bufContentSize, bufContent);
+    	bufContent[bufContentSize-1]='\0';
+    	FILE *fp = fopen(bufContent, "r");
         if (fp != NULL){
             Rio_writen(connfd, "OK-", strlen("OK"));
-            bufContent = (unsigned char*) malloc(BLOCK_SIZE);
-            while ((bufContentSize = fread(bufContent, sizeof(unsigned char), BLOCK_SIZE, fp)) > 0) {
+            bufContent = (char*) malloc(BLOCK_SIZE);
+            while ((bufContentSize = fread(bufContent, sizeof(char), BLOCK_SIZE, fp)) > 0) {
                 if (!ferror(fp))
                     Rio_writen(connfd, bufContent, bufContentSize);
                 else
