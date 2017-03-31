@@ -10,9 +10,9 @@ int main(int argc, char **argv)
 {
     int clientfd, transfered;
     size_t n;
-    char *host, buf[MAXLINE], filename[MAXLINE];
+    char *host, *token, buf[MAXLINE], filename[MAXLINE];
     rio_t rio;
-    int duration;
+    double duration, vitesse;
     time_t start, stop;
 
     if (argc != 2) {
@@ -21,43 +21,62 @@ int main(int argc, char **argv)
     }
     host = argv[1];
 
-    /*
-     * Note that the 'host' can be a name or an IP address.
-     * If necessary, Open_clientfd will perform the name resolution
-     * to obtain the IP address.
-     */
     clientfd = Open_clientfd(host, 2121);
-    
-    /*
-     * At this stage, the connection is established between the client
-     * and the server OS ... but it is possible that the server application
-     * has not yet called "Accept" for this connection
-     */
+    transfered = 0;
 
     struct sockaddr_in clientaddr;
     socklen_t clientlen = (socklen_t)sizeof(clientaddr);
-    getsockname(clientfd, (struct sockaddr *)&clientaddr, &clientlen); 
-    printf("client connected to server OS port : %d, addr : %s\n", ntohs(clientaddr.sin_port), inet_ntoa(clientaddr.sin_addr)); 
-    
+    getsockname(clientfd, (struct sockaddr *)&clientaddr, &clientlen);
+    printf("client connected to server OS port : %d, addr : %s\n", ntohs(clientaddr.sin_port), inet_ntoa(clientaddr.sin_addr));
+
     Rio_readinitb(&rio, clientfd);
 
     if (Fgets(buf, MAXLINE, stdin) != NULL) {
-	transfered = 0;
-	memcpy(filename, buf, strlen(buf)-1);
+
+        memcpy(filename, buf, strlen(buf)-1);
         Rio_writen(clientfd, buf, strlen(buf));
-	FILE *fp = fopen(basename(filename), "w+");
 
-	time(&start);	
+        if ((n = Rio_readlineb(&rio, buf, 3)) != 0) {
 
-        while((n = Rio_readlineb(&rio, buf, MAXLINE)) > 0) {
-		Rio_writen(fileno(fp), buf, n);
-		transfered += n;
+            if (!strcmp(buf,"OK")){
+                printf("toto:%s",buf);
+            } else {
+                printf("tata:%s",buf);
+            }
+
+            token = strtok(buf, "-");
+            if (!strcmp(token, "OK")){
+                while( token != NULL ) {
+                    printf( "%s\n", token );
+                    token = strtok(NULL, "-");
+                }
+
+            	FILE *fp = fopen(basename(filename), "w+");
+
+            	time(&start);
+
+                while((n = Rio_readlineb(&rio, buf, MAXLINE)) > 0) {
+            		Rio_writen(fileno(fp), buf, n);
+                    transfered += n;
+                }
+            	fclose(fp);
+                time(&stop);
+                duration = difftime(stop, start);
+                vitesse = (transfered/1000)/duration;
+                if (duration == 0)
+                    printf("Fin du transfert de fichier : %d octets transférés. Vitesse trop rapide pour être calculé\n",transfered);
+                else
+                    printf("Fin du transfert de fichier : %d octets transférés en %f secondes, vitesse :%f Kb/s\n",transfered, duration, vitesse);
+
+            } else {
+                while( token != NULL ) {
+                    printf("Erreur Serveur :\n");
+                    printf( "%s\n", token );
+                    token = strtok(NULL, "-");
+                }
+            }
         }
-	fclose(fp);
     }
     Close(clientfd);
-    time(&stop);
-    duration = difftime(stop, start);
-    printf("Fin du transfert de fichier : %d octets transférés en %d secondes, vitesse :%d Kb/s\n",transfered, duration, (transfered/1000)/duration);
     exit(0);
 }
