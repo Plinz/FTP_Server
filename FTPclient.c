@@ -10,8 +10,6 @@
 
 void handleLS(){
 
-
-
 }
 
 
@@ -103,15 +101,13 @@ int main(int argc, char **argv)
     if (Fgets(buf, MAXLINE, stdin) != NULL) {
 	
 	text = strtok(buf, " ");
-	printf("Test ;;;;;;;;  %s et %s\n",text);
 	if(strcmp(text,"GET")==0){
-		text = strtok(NULL, " ");;
-		printf("BUF size : %ld : text : %s \n",strlen(text),text);
+		text = strtok(NULL, " ");
 		handleFileTransfer(text,clientfd,rio);
 	}
-	else if(strcmp(text,"LS")==0)
-		printf("BUF size : %ld : text : %s \n",strlen(text),text);
-		
+	else if(strcmp(text,"LS")==0){
+		handleLS();
+	}
     }
     Close(clientfd);
     exit(0);

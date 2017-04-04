@@ -8,7 +8,18 @@
 #include <stdlib.h>
 
 #define BLOCK_SIZE 1000000
+void ls(int connfd){
+	pid_t pid;
 
+	//pipe(tube);
+	if((pid = fork())==0){
+		printf("Ecriture du LS gros\n");
+		dup2(1,connfd);
+		char * retour[2]={"ls",NULL};
+		execvp(retour[0],retour);
+	}	
+	waitpid(pid,NULL,0);
+}
 
 
 void echo(int connfd)
