@@ -94,12 +94,13 @@ void handle(int listenfd, char** slaves){
 	while(1){
 		while((clientfd = Accept(listenfd, (SA *)&clientaddr, &clientlen)) == -1){}
 		Getnameinfo((SA *) &clientaddr, clientlen, client_hostname, MAX_NAME_LEN, 0, 0, 0);
-		for(int i=0; i<NB_SLAVES; i++){
-			if (strcmp(slaves[i], client_hostname)){
-				is_Slave = 1;
-				break;
-			}
-		}
+
+		// for(int i=0; i<NB_SLAVES; i++){
+		// 	if (strcmp(slaves[i], client_hostname) == 0){
+		// 		is_Slave = 1;
+		// 		break;
+		// 	}
+		// }
 		if (is_Slave){
 			synchronize_Slaves(clientfd, client_hostname, slaves);
 			Close(clientfd);

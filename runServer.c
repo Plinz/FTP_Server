@@ -1,6 +1,3 @@
-/*
- * echo - read and echo text lines until client closes connection
- */
 #include "csapp.h"
 #include <errno.h>
 #include <string.h>
@@ -9,7 +6,11 @@
 
 #define BLOCK_SIZE 1000000
 
-void ls(int clientfd){
+void toLowerString(char* str){
+	for ( ; *str; ++str) *str = tolower(*str);
+}
+
+void my_LS(int clientfd){
 	pid_t pid;
 	Rio_writen(clientfd, "OK-", strlen("OK"));
 	if((pid = fork())==0){
@@ -20,12 +21,12 @@ void ls(int clientfd){
 		if(execvp(retour[0],retour) == -1){
 			printf("Error\n");
 		}
-	}	
+	}
 	waitpid(-1,NULL,0);
 	printf("Fin\n");
 }
 
-void pwd(int clientfd){
+void my_PWD(int clientfd){
 	pid_t pid;
 	Rio_writen(clientfd, "OK-", strlen("OK"));
 	if((pid = fork())==0){
@@ -36,12 +37,12 @@ void pwd(int clientfd){
 		if(execvp(retour[0],retour) == -1){
 			printf("Error\n");
 		}
-	}	
+	}
 	waitpid(-1,NULL,0);
 	printf("Fin\n");
 }
 
-void my_mkdir(char * bufContent, int clientfd){
+void my_MKDIR(char * bufContent, int clientfd){
 	pid_t pid;
 	Rio_writen(clientfd, "OK-", strlen("OK"));
 	if((pid = fork())==0){
@@ -52,12 +53,12 @@ void my_mkdir(char * bufContent, int clientfd){
 		if(execvp(retour[0],retour) == -1){
 			printf("Error\n");
 		}
-	}	
+	}
 	waitpid(-1,NULL,0);
 	printf("Fin\n");
 }
 
-void fileTransfer(char * bufContent,int clientfd){
+void getFile(char * bufContent,int clientfd){
 	size_t bufContentSize = strlen(bufContent);
 	bufContent[bufContentSize-1]='\0';
     	FILE *fp = fopen(bufContent, "r");
@@ -87,30 +88,25 @@ void fileTransfer(char * bufContent,int clientfd){
 void connectClient(int clientfd)
 {
     size_t bufContentSize;
-    char *bufContent,*commande;
+    char bufContent[MAXLINE], finput[MAXLINE], *keyword;
     rio_t rio;
-    
 
-    bufContent = (char*) malloc(MAXLINE);
     Rio_readinitb(&rio, clientfd);
     if ((bufContentSize = Rio_readlineb(&rio, bufContent, MAXLINE)) != 0) {
         printf("server received %u bytes && contenu : %s\n", (unsigned int)bufContentSize, bufContent);
+		memcpy(finput,bufContent,strlen(bufContent)-1);
+		keyword = strtok(bufContent, " ");
+		toLowerString(keyword);
 
-	
-	commande  = strtok(bufContent, " ");
-	if(strcmp(commande,"GET")==0){
-		commande = strtok(NULL, " ");
-		fileTransfer(commande,clientfd);
-	}
-	else if(strcmp(commande,"LS\n")==0){
-		ls(clientfd);
-	}
-	else if(strcmp(commande,"PWD\n")==0){
-		pwd(clientfd);
-	}		
-	else if(strcmp(commande,"MKDIR")==0){
-		commande = strtok(NULL, " ");
-		my_mkdir(commande,clientfd);
-	}
+		if(strcmp(keyword,"get")==0)
+			getFile(strtok(NULL, " "),clientfd);
+		else if(strcmp(keyword,"ls")==0)
+			my_LS(clientfd);
+		else if(strcmp(keyword,"pwd")==0)
+			my_PWD(clientfd);
+		else if(strcmp(keyword,"mkdir")==0)
+			my_MKDIR(strtok(NULL, " "),clientfd);
+		// else if(strcmp(keyword,"bye") == 0)
+		// 	break;
     }
 }
