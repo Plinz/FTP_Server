@@ -11,35 +11,37 @@
 
 
 
-void echo(int connfd)
+void connectClient(int clientfd)
 {
     size_t bufContentSize;
     char *bufContent;
     rio_t rio;
     int error = 0;
 
+    Rio_writen(clientfd, "Esclave pour vous servir", strlen("Esclave pour vous servir"));
+
     bufContent = (char*) malloc(MAXLINE);
-    Rio_readinitb(&rio, connfd);
+    Rio_readinitb(&rio, clientfd);
     if ((bufContentSize = Rio_readlineb(&rio, bufContent, MAXLINE)) != 0) {
         printf("server received %u bytes && contenu : %s\n", (unsigned int)bufContentSize, bufContent);
     	bufContent[bufContentSize-1]='\0';
     	FILE *fp = fopen(bufContent, "r");
 
         if (fp != NULL){
-            Rio_writen(connfd, "OK-", strlen("OK"));
+            Rio_writen(clientfd, "OK-", strlen("OK"));
             bufContent = (char*) malloc(BLOCK_SIZE);
             while ((bufContentSize = fread(bufContent, sizeof(char), BLOCK_SIZE, fp)) > 0) {
                 if (!ferror(fp))
-                    Rio_writen(connfd, bufContent, bufContentSize);
+                    Rio_writen(clientfd, bufContent, bufContentSize);
                 else
-                    Rio_writen(connfd, "AN ERROR OCCURED DURING THE FILE READING\n", strlen("AN ERROR OCCURED DURING THE FILE READING\n"));
+                    Rio_writen(clientfd, "AN ERROR OCCURED DURING THE FILE READING\n", strlen("AN ERROR OCCURED DURING THE FILE READING\n"));
             }
         } else
             error = 1;
         if (error){
             char *strerr = strerror(errno);
-            Rio_writen(connfd, "KO", strlen("KO"));
-            Rio_writen(connfd, strerr, strlen(strerr));
+            Rio_writen(clientfd, "KO", strlen("KO"));
+            Rio_writen(clientfd, strerr, strlen(strerr));
         }
         free(bufContent);
     }

@@ -5,7 +5,7 @@
 #define HANDLER_PROCESS 40
 
 int pid[HANDLER_PROCESS];
-
+void connectClient(int clientfd);
 void handlerFin(int sig){
 	for(int i = 0; i < HANDLER_PROCESS;i++){
 		kill(pid[i],SIGINT);
@@ -34,7 +34,7 @@ void handle(int listenfd){
 	    Rio_readinitb(&rio, masterfd);
 	    if ((bufContentSize = Rio_readlineb(&rio, bufContent, MAXLINE)) != 0) {
 	        printf("Slave received %u bytes && contenu : %s\n", (unsigned int)bufContentSize, bufContent);
-			connectClient(Open_clientfd(bufContent, 2121);)
+			connectClient(Open_clientfd(bufContent, 2123));
 	        free(bufContent);
 	    }
 	}
@@ -50,7 +50,7 @@ int main(int argc, char **argv)
         exit(0);
     }
 
-    listenfd = Open_listenfd(2121);
+    listenfd = Open_listenfd(2122);
 	signal(SIGINT,handlerFin);
 	for(int i = 0 ; i < HANDLER_PROCESS;i++){
 		if((pid[i] = fork()) == 0){
