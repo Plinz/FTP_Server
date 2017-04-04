@@ -7,12 +7,6 @@
 #include <libgen.h>
 
 /* Affiche les informations à propos du transfert de fichier */
-
-void handleLS(){
-
-}
-
-
 void printInfo(time_t start,time_t stop,int transfered){
 
 	double duration = difftime(stop, start);
@@ -59,12 +53,12 @@ void handleFileTransfer(char * buf,int clientfd,rio_t rio){
             		Rio_writen(fileno(fp), buf, n);
                     transfered += n;
                 }
-            	fclose(fp);
+            	//fclose(fp); Ca bug sa race avec cette merde.
                 time(&stop);
-
                 printInfo(start,stop, transfered);
 
             } else {
+		printf("Erreur\n");
                 while( token != NULL ) {
                     printf("Erreur Serveur :\n");
                     printf( "%s\n", token );
@@ -74,12 +68,32 @@ void handleFileTransfer(char * buf,int clientfd,rio_t rio){
         }
 }
 
+void handleLS(int clientfd,rio_t rio){
+	char  buf2[MAXLINE];
+        Rio_writen(clientfd, "LS\n", 3);
+	while((Rio_readlineb(&rio, buf2, MAXLINE))>0)
+		printf("%s",buf2);
+}
+
+void handlePWD(int clientfd,rio_t rio){
+	char  buf2[MAXLINE];
+        Rio_writen(clientfd, "PWD\n", 4);
+	while((Rio_readlineb(&rio, buf2, MAXLINE))>0)
+		printf("%s",buf2);
+}
+
+void handleMKDIR(char * buf,int clientfd,rio_t rio){
+	Rio_writen(clientfd,buf,strlen(buf));
+
+}
+
+
 int main(int argc, char **argv)
 {
     int listenfd, slavefd;
 	struct sockaddr_in slaveaddr;
 	socklen_t slavelen = (socklen_t)sizeof(slaveaddr);
-    char *master, buf[MAXLINE], *text;
+    char *master, buf[MAXLINE],*commande, *copy;
     rio_t rio;
 
 
@@ -98,16 +112,23 @@ int main(int argc, char **argv)
     Rio_readinitb(&rio, slavefd);
 
     if (Fgets(buf, MAXLINE, stdin) != NULL) {
-
-	text = strtok(buf, " ");
-	if(strcmp(text,"GET")==0){
-		text = strtok(NULL, " ");
-		handleFileTransfer(text,clientfd,rio);
+	commande = (char *)malloc(strlen(buf));
+	memcpy(commande,buf,strlen(buf));
+	copy = buf;
+	copy = strtok(copy, " ");
+	
+    	if(strcmp(copy,"GET")==0){
+		handleFileTransfer(commande,slavefd,rio);
 	}
-	else if(strcmp(text,"LS")==0){
-		handleLS();
-	}
+	else if(strcmp(copy,"LS\n")==0)
+		handleLS(slavefd,rio);
 
+	else if(strcmp(copy,"PWD\n")==0){
+		handlePWD(slavefd,rio);
+	}
+	else if(strcmp(copy,"MKDIR")==0)
+		handleMKDIR(commande, slavefd,rio);
+	printf("Fin du transfert");
     }
     Close(slavefd);
     exit(0);

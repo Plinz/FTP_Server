@@ -8,36 +8,61 @@
 #include <stdlib.h>
 
 #define BLOCK_SIZE 1000000
-void ls(int connfd){
-	pid_t pid;
 
-	//pipe(tube);
+void ls(int clientfd){
+	pid_t pid;
+	Rio_writen(clientfd, "OK-", strlen("OK"));
 	if((pid = fork())==0){
-		printf("Ecriture du LS gros\n");
-		dup2(1,connfd);
+		if(dup2(clientfd,1)== -1){
+			printf("Erreur dup");
+		}
 		char * retour[2]={"ls",NULL};
-		execvp(retour[0],retour);
+		if(execvp(retour[0],retour) == -1){
+			printf("Error\n");
+		}
 	}	
-	waitpid(pid,NULL,0);
+	waitpid(-1,NULL,0);
+	printf("Fin\n");
 }
 
+void pwd(int clientfd){
+	pid_t pid;
+	Rio_writen(clientfd, "OK-", strlen("OK"));
+	if((pid = fork())==0){
+		if(dup2(clientfd,1)== -1){
+			printf("Erreur dup");
+		}
+		char * retour[2]={"pwd",NULL};
+		if(execvp(retour[0],retour) == -1){
+			printf("Error\n");
+		}
+	}	
+	waitpid(-1,NULL,0);
+	printf("Fin\n");
+}
 
-void connectClient(int clientfd)
-{
-    size_t bufContentSize;
-    char *bufContent;
-    rio_t rio;
-    int error = 0;
+void my_mkdir(char * bufContent, int clientfd){
+	pid_t pid;
+	Rio_writen(clientfd, "OK-", strlen("OK"));
+	if((pid = fork())==0){
+		if(dup2(clientfd,1)== -1){
+			printf("Erreur dup");
+		}
+		char * retour[3]={"mkdir",bufContent,NULL};
+		if(execvp(retour[0],retour) == -1){
+			printf("Error\n");
+		}
+	}	
+	waitpid(-1,NULL,0);
+	printf("Fin\n");
+}
 
-    Rio_writen(clientfd, "Esclave pour vous servir", strlen("Esclave pour vous servir"));
-
-    bufContent = (char*) malloc(MAXLINE);
-    Rio_readinitb(&rio, clientfd);
-    if ((bufContentSize = Rio_readlineb(&rio, bufContent, MAXLINE)) != 0) {
-        printf("server received %u bytes && contenu : %s\n", (unsigned int)bufContentSize, bufContent);
-    	bufContent[bufContentSize-1]='\0';
+void fileTransfer(char * bufContent,int clientfd){
+	size_t bufContentSize = strlen(bufContent);
+	bufContent[bufContentSize-1]='\0';
     	FILE *fp = fopen(bufContent, "r");
-
+	int error = 0;
+	printf("buffContent : %s\n",bufContent);
         if (fp != NULL){
             Rio_writen(clientfd, "OK-", strlen("OK"));
             bufContent = (char*) malloc(BLOCK_SIZE);
@@ -55,5 +80,37 @@ void connectClient(int clientfd)
             Rio_writen(clientfd, strerr, strlen(strerr));
         }
         free(bufContent);
+
+}
+
+
+void connectClient(int clientfd)
+{
+    size_t bufContentSize;
+    char *bufContent,*commande;
+    rio_t rio;
+    
+
+    bufContent = (char*) malloc(MAXLINE);
+    Rio_readinitb(&rio, clientfd);
+    if ((bufContentSize = Rio_readlineb(&rio, bufContent, MAXLINE)) != 0) {
+        printf("server received %u bytes && contenu : %s\n", (unsigned int)bufContentSize, bufContent);
+
+	
+	commande  = strtok(bufContent, " ");
+	if(strcmp(commande,"GET")==0){
+		commande = strtok(NULL, " ");
+		fileTransfer(commande,clientfd);
+	}
+	else if(strcmp(commande,"LS\n")==0){
+		ls(clientfd);
+	}
+	else if(strcmp(commande,"PWD\n")==0){
+		pwd(clientfd);
+	}		
+	else if(strcmp(commande,"MKDIR")==0){
+		commande = strtok(NULL, " ");
+		my_mkdir(commande,clientfd);
+	}
     }
 }

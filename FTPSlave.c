@@ -15,7 +15,7 @@ void handlerFin(int sig){
 
 void handle(int listenfd){
 
-	int masterfd;
+	int masterfd,clientfd;
 	struct sockaddr_in clientaddr;
 	socklen_t clientlen;
 	clientlen = (socklen_t)sizeof(clientaddr);
@@ -34,7 +34,8 @@ void handle(int listenfd){
 	    Rio_readinitb(&rio, masterfd);
 	    if ((bufContentSize = Rio_readlineb(&rio, bufContent, MAXLINE)) != 0) {
 	        printf("Slave received %u bytes && contenu : %s\n", (unsigned int)bufContentSize, bufContent);
-			connectClient(Open_clientfd(bufContent, 2123));
+			connectClient(clientfd=Open_clientfd(bufContent, 2123));
+		Close(clientfd);
 	        free(bufContent);
 	    }
 	}
