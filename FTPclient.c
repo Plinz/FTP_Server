@@ -76,9 +76,10 @@ void handleFileTransfer(char * buf,int clientfd,rio_t rio){
 
 int main(int argc, char **argv)
 {
-    int clientfd;
-    
-    char *host, buf[MAXLINE], *text;
+    int listenfd, slavefd;
+	struct sockaddr_in slaveaddr;
+	socklen_t slavelen = (socklen_t)sizeof(slaveaddr);
+    char *master, buf[MAXLINE], *text;
     rio_t rio;
 
 
@@ -86,20 +87,18 @@ int main(int argc, char **argv)
         fprintf(stderr, "usage: %s <host>\n", argv[0]);
         exit(0);
     }
-    host = argv[1];
+    master = argv[1];
 
-    clientfd = Open_clientfd(host, 2121);
-   
+    Open_clientfd(master, 2121);
+	listenfd = Open_listenfd(2123);
+	while((slavefd = Accept(listenfd, (SA *)&slaveaddr, &slavelen)) == -1){}
 
-    struct sockaddr_in clientaddr;
-    socklen_t clientlen = (socklen_t)sizeof(clientaddr);
-    getsockname(clientfd, (struct sockaddr *)&clientaddr, &clientlen);
-    printf("client connected to server OS port : %d, addr : %s\n", ntohs(clientaddr.sin_port), inet_ntoa(clientaddr.sin_addr));
+    printf("client connected to server OS port : %d, addr : %s\n", ntohs(slaveaddr.sin_port), inet_ntoa(slaveaddr.sin_addr));
 
-    Rio_readinitb(&rio, clientfd);
+    Rio_readinitb(&rio, slavefd);
 
     if (Fgets(buf, MAXLINE, stdin) != NULL) {
-	
+
 	text = strtok(buf, " ");
 	if(strcmp(text,"GET")==0){
 		text = strtok(NULL, " ");
@@ -108,7 +107,8 @@ int main(int argc, char **argv)
 	else if(strcmp(text,"LS")==0){
 		handleLS();
 	}
+
     }
-    Close(clientfd);
+    Close(slavefd);
     exit(0);
 }

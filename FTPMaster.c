@@ -51,17 +51,17 @@ char ** loadSlavesProperties(){
 
 void handle(int listenfd, char** slaves){
 
-	int slavefd;
+	int slavefd, clientfd;
 	struct sockaddr_in clientaddr;
 	socklen_t clientlen = (socklen_t)sizeof(clientaddr);
 	char client_hostname[MAX_NAME_LEN];
-	rio_t rioClient;
 	int nextSlaves = 0;
 
 	while(1){
-		while(Accept(listenfd, (SA *)&clientaddr, &clientlen) == -1){}
+		while((clientfd = Accept(listenfd, (SA *)&clientaddr, &clientlen)) == -1){}
+		Close(clientfd);
 		Getnameinfo((SA *) &clientaddr, clientlen, client_hostname, MAX_NAME_LEN, 0, 0, 0);
-		slavefd = Open_clientfd(slaves[nextSlaves++], 2121);
+		slavefd = Open_clientfd(slaves[nextSlaves++], 2122);
 		Rio_writen(slavefd, client_hostname, strlen(client_hostname));
 		Close(slavefd);
 
