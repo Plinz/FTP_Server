@@ -9,6 +9,8 @@
 
 #define BLOCK_SIZE 1000000
 
+
+
 void echo(int connfd)
 {
     size_t bufContentSize;
@@ -22,6 +24,7 @@ void echo(int connfd)
         printf("server received %u bytes && contenu : %s\n", (unsigned int)bufContentSize, bufContent);
     	bufContent[bufContentSize-1]='\0';
     	FILE *fp = fopen(bufContent, "r");
+
         if (fp != NULL){
             Rio_writen(connfd, "OK-", strlen("OK"));
             bufContent = (char*) malloc(BLOCK_SIZE);

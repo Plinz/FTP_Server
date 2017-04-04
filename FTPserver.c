@@ -34,6 +34,7 @@ void handle(int listenfd){
 	clientlen = (socklen_t)sizeof(clientaddr);
 	char client_hostname[MAX_NAME_LEN];
 	char client_ip_string[INET_ADDRSTRLEN];
+	
 	while(1){
 		while((connfd = Accept(listenfd, (SA *)&clientaddr, &clientlen)) == -1){}
 		
@@ -48,7 +49,8 @@ void handle(int listenfd){
 
 		getsockname(connfd, (struct sockaddr *)&clientaddr, &clientlen); 
 		printf("server connected to %s (%s) port : %d addresse : %s, pid : %d\n", client_hostname, client_ip_string, ntohs(clientaddr.sin_port), inet_ntoa(clientaddr.sin_addr), getpid());
-
+		
+		
 		echo(connfd);
 		Close(connfd);
 	}
