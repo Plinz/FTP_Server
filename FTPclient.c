@@ -6,10 +6,10 @@
 char pwd_FTP[MAXLINE];
 
 void init_prompt(int clientfd,rio_t rio){
-	char  buf[MAXLINE];
+	char buf[MAXLINE];
 	Rio_writen(clientfd, "PWD\n", 4);
-	while((Rio_readlineb(&rio, buf, MAXLINE))>0){
-		memcpy(pwd_FTP, &buf[2], strlen(buf)-3);
+	if((Rio_readlineb(&rio, buf, MAXLINE))!=0){
+		memcpy(pwd_FTP, buf, strlen(buf)-1);
 	}
 }
 
@@ -25,14 +25,12 @@ void toLower(char* str){
 
 /* Affiche les informations à propos du transfert de fichier */
 void printInfo(time_t start,time_t stop,int transfered){
-
 	double duration = difftime(stop, start);
 	double vitesse = (transfered/1000)/duration;
 	if (duration == 0)
 		printf("Fin du transfert de fichier : %d octets transférés. Vitesse trop rapide pour être calculée\n",transfered);
 	else
 		printf("Fin du transfert de fichier : %d octets transférés en %f secondes, vitesse :%f Kb/s\n",transfered, duration, vitesse);
-
 }
 
 /* Gestion du transfert de fichier */
@@ -67,16 +65,27 @@ void handleGetFile(char * buf,int clientfd,rio_t rio){
 }
 
 void handleLS(int clientfd,rio_t rio){
-	char  buf[MAXLINE];
+	char buf[MAXLINE], size[MAXLINE];
+	int size_To_Read;
 	Rio_writen(clientfd, "LS\n", 3);
-	while((Rio_readlineb(&rio, buf, MAXLINE))>0)
-		printf("%s",buf);
+	if((Rio_readlineb(&rio, buf, MAXLINE))!=0){
+		memcpy(size,buf,strlen(buf)-1);
+		size_To_Read = atoi(size);
+		printf("size=%d\n",size_To_Read);
+		if((Rio_readnb(&rio, buf, (size_To_Read-1))) !=0){
+			printf("%s\n",buf);
+		} else {
+			printf("ok\n");
+		}
+	}
+	// while((Rio_readlineb(&rio, buf, MAXLINE))>0)
+	// 	printf("%s",buf);
 }
 
 void handlePWD(int clientfd,rio_t rio){
-	char  buf[MAXLINE];
+	char buf[MAXLINE];
 	Rio_writen(clientfd, "PWD\n", 4);
-	while((Rio_readlineb(&rio, buf, MAXLINE))>0)
+	if((Rio_readlineb(&rio, buf, MAXLINE))!=0)
 		printf("%s",buf);
 }
 
@@ -108,7 +117,7 @@ int main(int argc, char **argv)
 	init_prompt(slavefd,rio);
 	display_prompt();
 
-	if (Fgets(input, MAXLINE, stdin) != NULL) {
+	while (Fgets(input, MAXLINE, stdin) != NULL) {
 		memcpy(finput,input,strlen(input)-1);
 		keyword = strtok(finput, " ");
 		toLower(keyword);
@@ -125,8 +134,11 @@ int main(int argc, char **argv)
 			handleMKDIR(input, slavefd,rio);
 		else
 			printf("Commande inconnue : %s\n",keyword);
+		display_prompt();
+		memset(input,0,strlen(input));
+		memset(finput,0,strlen(finput));
+		memset(keyword,0,strlen(keyword));
 	}
-	display_prompt();
 	Close(slavefd);
 	exit(0);
 }

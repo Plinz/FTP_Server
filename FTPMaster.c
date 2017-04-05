@@ -3,7 +3,7 @@
 #define MAX_NAME_LEN 256
 #define SLAVES_PROPERTIES "slaves.properties"
 #define NB_SLAVES 3
-#define HANDLER_PROCESS 40
+#define HANDLER_PROCESS 5
 
 int pid[HANDLER_PROCESS];
 

@@ -2,7 +2,7 @@
 
 #define MAX_NAME_LEN 256
 
-#define HANDLER_PROCESS 40
+#define HANDLER_PROCESS 5
 
 int pid[HANDLER_PROCESS];
 void connectClient(int clientfd);
