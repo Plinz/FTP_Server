@@ -64,7 +64,7 @@ void handleGetFile(char * buf,int clientfd,rio_t rio){
 	   printf("Error : Server closed the connexion\n");
 }
 
-void handleLS(int clientfd,rio_t rio){
+void handleLS(int clientfd, rio_t rio){
 	char buf[MAXLINE], size[MAXLINE];
 	int size_To_Read;
 	Rio_writen(clientfd, "LS\n", 3);
@@ -82,15 +82,21 @@ void handleLS(int clientfd,rio_t rio){
 	// 	printf("%s",buf);
 }
 
-void handlePWD(int clientfd,rio_t rio){
+void handlePWD(int clientfd, rio_t rio){
 	char buf[MAXLINE];
 	Rio_writen(clientfd, "PWD\n", 4);
 	if((Rio_readlineb(&rio, buf, MAXLINE))!=0)
 		printf("%s",buf);
 }
 
-void handleMKDIR(char * buf,int clientfd,rio_t rio){
-	Rio_writen(clientfd,buf,strlen(buf));
+void handleMKDIR(char *dir, int clientfd, rio_t rio){
+	char buf[MAXLINE], cmd[MAXLINE];
+   	strcpy(cmd,  "MKDIR ");
+	strcat(cmd, dir);
+	strcat(cmd, "\n");
+	Rio_writen(clientfd, cmd, strlen(cmd));
+	if((Rio_readlineb(&rio, buf, MAXLINE))!=0)
+		printf("%s",buf);
 }
 
 
@@ -130,8 +136,10 @@ int main(int argc, char **argv)
 			handlePWD(slavefd,rio);
 		// else if(strcmp(keyword,"cd") == 0)
 		// 	handleCD(slavefd,rio);
-		else if(strcmp(keyword,"mkdir") == 0)
-			handleMKDIR(input, slavefd,rio);
+		else if(strcmp(keyword,"mkdir") == 0){
+			keyword = strtok(NULL, " ");
+			handleMKDIR(keyword, slavefd, rio);
+		}
 		else
 			printf("Commande inconnue : %s\n",keyword);
 		display_prompt();

@@ -6,11 +6,12 @@
 #define BLOCK_SIZE 1000000
 
 void my_LS(int clientfd){
-	char buffer[MAXLINE], size[MAXLINE];
+	char buf_ls[MAXLINE], size[MAXLINE];
 	int out_pipe[2];
 	if(pipe(out_pipe) != 0) {exit(1);}
 	if(fork()==0){
 		dup2(out_pipe[1], STDOUT_FILENO);
+		dup2(out_pipe[1], STDERR_FILENO);
 		Close(out_pipe[1]);
 		char * ls[2]={"ls",NULL};
 		if(execvp(ls[0],ls) == -1){
@@ -19,48 +20,59 @@ void my_LS(int clientfd){
 	} else{
 		Close(out_pipe[1]);
 		waitpid(-1,NULL,0);
-		fflush(stdout);
-		read(out_pipe[0], buffer, MAXLINE);
+		read(out_pipe[0], buf_ls, MAXLINE);
 		Close(out_pipe[0]);
-		sprintf(size, "%lu\n", strlen(buffer));
+		sprintf(size, "%lu\n", strlen(buf_ls));
 		Rio_writen(clientfd, size, strlen(size));
-		Rio_writen(clientfd, buffer, strlen(buffer));
+		Rio_writen(clientfd, buf_ls, strlen(buf_ls));
 	}
 }
 
-void my_CMD(int clientfd, char** cmd){
+void my_PWD(int clientfd){
+	char * pwd[2]={"pwd",NULL};
 	char buffer[MAXLINE];
 	int out_pipe[2];
 	if(pipe(out_pipe) != 0) {exit(1);}
 	if(fork()==0){
 		dup2(out_pipe[1], STDOUT_FILENO);
+		dup2(out_pipe[1], STDERR_FILENO);
 		Close(out_pipe[1]);
-		if(execvp(cmd[0],cmd) == -1){
+		if(execvp(pwd[0],pwd) == -1){
 			printf("Error\n");
 		}
 	} else{
 		Close(out_pipe[1]);
 		waitpid(-1,NULL,0);
-		fflush(stdout);
 		read(out_pipe[0], buffer, MAXLINE);
 		Close(out_pipe[0]);
 		Rio_writen(clientfd, buffer, strlen(buffer));
 	}
 }
 
-void my_MKDIR(char * bufContent, int clientfd){
-	pid_t pid;
-	Rio_writen(clientfd, "OK-\n", strlen("OK-\n"));
-	if((pid = fork())==0){
-		if(dup2(clientfd,1)== -1){
-			printf("Erreur dup");
-		}
-		char * retour[3]={"mkdir",bufContent,NULL};
-		if(execvp(retour[0],retour) == -1){
+void my_MKDIR(char* bufContent, int clientfd){
+	char * mkdir[3]={"mkdir",bufContent,NULL};
+	char buffer[MAXLINE];
+	int out_pipe[2], resultSize;
+	int saved_stdout = dup(STDOUT_FILENO);
+	if(pipe(out_pipe) != 0) {exit(1);}
+	if(fork()==0){
+		dup2(out_pipe[1], STDOUT_FILENO);
+		dup2(out_pipe[1], STDERR_FILENO);
+		Close(out_pipe[1]);
+		if(execvp(mkdir[0],mkdir) == -1){
 			printf("Error\n");
 		}
+	} else{
+		Close(out_pipe[1]);
+		waitpid(-1,NULL,0);
+		resultSize = read(out_pipe[0], buffer, MAXLINE);
+		Close(out_pipe[0]);
+		dup2(saved_stdout, STDOUT_FILENO);
+		if (resultSize == 0)
+			Rio_writen(clientfd, "Directory successfully created.\n", strlen("Directory successfully created.\n"));
+		else
+			Rio_writen(clientfd, buffer, resultSize);
 	}
-	waitpid(-1,NULL,0);
 }
 
 void getFile(char * bufContent,int clientfd){
@@ -95,7 +107,6 @@ void connectClient(int clientfd)
     size_t bufContentSize;
     char bufContent[MAXLINE], finput[MAXLINE], *keyword;
     rio_t rio;
-	char * pwd[2]={"pwd",NULL};
 
 
 
@@ -105,15 +116,18 @@ void connectClient(int clientfd)
 	        printf("Slave received %u bytes && contenu : %s\n", (unsigned int)bufContentSize, bufContent);
 			strncpy(finput,bufContent,strlen(bufContent)-1);
 			keyword = strtok(finput, " ");
-			if(strcmp(keyword,"GET")==0)
-				getFile(strtok(NULL, " "),clientfd);
-			else if(strcmp(keyword,"LS")==0){
-				my_LS(clientfd);
+			if(strcmp(keyword, "GET")==0){
+				keyword = strtok(NULL, " ");
+				getFile(keyword, clientfd);
 			}
-			else if(strcmp(keyword,"PWD")==0)
-				my_CMD(clientfd, pwd);
-			else if(strcmp(keyword,"MKDIR")==0)
-				my_MKDIR(strtok(NULL, " "),clientfd);
+			else if(strcmp(keyword, "LS")==0)
+				my_LS(clientfd);
+			else if(strcmp(keyword, "PWD")==0)
+				my_PWD(clientfd);
+			else if(strcmp(keyword, "MKDIR")==0){
+				keyword = strtok(NULL, " ");
+				my_MKDIR(keyword, clientfd);
+			}
 			// else if(strcmp(keyword,"bye") == 0)
 			// 	break;
 		}
