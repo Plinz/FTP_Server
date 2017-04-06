@@ -94,7 +94,7 @@ void getFile(char * bufContent,int clientfd){
 	    Rio_writen(clientfd, size, strlen(size));
 
 	    /* Debut du protocole de transfert */
-            Rio_writen(clientfd, "OK-", strlen("OK-"));
+            Rio_writen(clientfd, "OK", strlen("OK"));
             bufContent = (char*) malloc(BLOCK_SIZE);
 
             while ((bufContentSize = fread(bufContent, sizeof(char), BLOCK_SIZE, fp)) > 0) {
@@ -120,11 +120,11 @@ void connectClient(int clientfd)
     size_t bufContentSize;
     char bufContent[MAXLINE], finput[MAXLINE], *keyword;
     rio_t rio;
-
+    bool connected = true;
 
 
     Rio_readinitb(&rio, clientfd);
-	while (1){
+	while (connected){
 		if ((bufContentSize = Rio_readlineb(&rio, bufContent, MAXBUF)) != 0) {
 	        printf("Slave received %u bytes && contenu : %s\n", (unsigned int)bufContentSize, bufContent);
 			strncpy(finput,bufContent,strlen(bufContent)-1);
@@ -142,12 +142,12 @@ void connectClient(int clientfd)
 				keyword = strtok(NULL, " ");
 				my_MKDIR(keyword, clientfd);
 			}
-			// else if(strcmp(keyword,"bye") == 0)
-			// 	break;
+			 else if(strcmp(keyword,"bye") == 0){
+			 	//break;
+			}
 		}
 		memset(bufContent,0,strlen(bufContent));
 		memset(finput,0,strlen(finput));
 		memset(keyword,0,strlen(keyword));
-		printf("Commande client terminee.");
 	}
 }

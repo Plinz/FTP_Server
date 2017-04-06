@@ -66,19 +66,24 @@ void handleGetFile(char * buf,int clientfd,rio_t rio){
 			while(transfered < size_To_Read) {
 				n = Rio_readlineb(&rio, buf, MAXLINE);
 				Rio_writen(fileno(fp), buf, n);
-				printf("%s + %lu + %d\n",buf,n, transfered);
+				printf("%s\n",buf);
 				transfered += n;
 			}
 			fclose(fp); //Ca bug sa race avec cette merde.
 			time(&stop);
 			printInfo(start,stop, transfered);
 		} else {
-			printf("Erreur serveur :\n");
+			printf("Erreur serveur :%s\n",buf);
 			while(Rio_readlineb(&rio, buf, MAXLINE) > 0)
 				printf("%s\n",buf);
 		}
    } else
 	   printf("Error : Server closed the connexion\n");
+}
+
+void handleBye(int clientfd){
+	Rio_writen(clientfd, "bye\n", 3);
+
 }
 
 void handleLS(int clientfd, rio_t rio){
@@ -158,6 +163,11 @@ int main(int argc, char **argv)
 		else if(strcmp(keyword,"mkdir") == 0){
 			keyword = strtok(NULL, " ");
 			handleMKDIR(keyword, slavefd, rio);
+		}
+		else if(strcmp(keyword,"bye") == 0){
+			/*
+			handleBye(slavefd);
+			exit(0);*/
 		}
 		else
 			printf("Commande inconnue : %s\n",keyword);

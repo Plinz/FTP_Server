@@ -34,8 +34,8 @@ void handle(int listenfd){
 	    Rio_readinitb(&rio, masterfd);
 	    if ((bufContentSize = Rio_readlineb(&rio, bufContent, MAXLINE)) != 0) {
 	        printf("Slave received %u bytes && contenu : %s\n", (unsigned int)bufContentSize, bufContent);
-			connectClient(clientfd=Open_clientfd(bufContent, 2123));
-			Close(clientfd);
+		connectClient(clientfd=Open_clientfd(bufContent, 2123));
+		Close(clientfd);
 	        free(bufContent);
 	    }
 	}
