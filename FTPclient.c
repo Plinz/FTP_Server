@@ -42,7 +42,6 @@ void handleGetFile(char * buf,int clientfd,rio_t rio){
 	int transfered = 0;
 	int size_To_Read;
 	
-
 	/* Recuperation du nom du fichier */
 	memcpy(filename, &buf[4], strlen(buf));
 	filename[strlen(filename)-1] = '\0';
@@ -50,32 +49,41 @@ void handleGetFile(char * buf,int clientfd,rio_t rio){
 	/* Envoi de la commande GET nom_fichier au serveur */	
 	Rio_writen(clientfd, buf, strlen(buf));
 	
-
-	/* Calcul de la taille du fichier a recuperer */
-	if((Rio_readlineb(&rio, buf, MAXLINE))!=0){
-		memcpy(size,buf,strlen(buf)-1);
-		size_To_Read = atoi(size);
-		printf("size=%d\n",size_To_Read);
-		
-	}
-	/*Debut du protocole de recuperation */
 	if ((n = Rio_readlineb(&rio, buf, 3)) != 0) {
 		if (strcmp(buf,"OK") == 0){
-			FILE *fp = fopen(basename(filename), "w+");
-			time(&start);
-			while(transfered < size_To_Read) {
-				n = Rio_readlineb(&rio, buf, MAXLINE);
-				Rio_writen(fileno(fp), buf, n);
-				printf("%s\n",buf);
-				transfered += n;
+			/* Calcul de la taille du fichier a recuperer */
+			if((Rio_readlineb(&rio, buf, MAXLINE))!=0){
+				memcpy(size,buf,strlen(buf));
+				size_To_Read = atoi(size);
+			
+				/*Debut du protocole de recuperation */
+				FILE *fp = fopen(basename(filename), "w+");
+				time(&start);
+				while(transfered < size_To_Read) {
+					n = Rio_readlineb(&rio, buf, MAXLINE);
+					Rio_writen(fileno(fp), buf, n);
+					printf("%s\n",buf);
+					transfered += n;
+				}
+				fclose(fp);
+				time(&stop);
+				printInfo(start,stop, transfered);
+
 			}
-			fclose(fp); //Ca bug sa race avec cette merde.
-			time(&stop);
-			printInfo(start,stop, transfered);
 		} else {
-			printf("Erreur serveur :%s\n",buf);
+			/* Une erreur est survenue : recuperation de l'erreur */
+			if((Rio_readlineb(&rio, buf, MAXLINE))!=0){
+				//memcpy(size,buf,strlen(buf)-1); NE marche pas, pourquoi mystere
+				memcpy(size,buf,strlen(buf));
+				size_To_Read = atoi(size);
+	  		}
+			if((Rio_readlineb(&rio, buf, size_To_Read))!=0){
+				printf("Erreur serveur :%s\n",buf);
+			}
+			/*
 			while(Rio_readlineb(&rio, buf, MAXLINE) > 0)
 				printf("%s\n",buf);
+			*/
 		}
    } else
 	   printf("Error : Server closed the connexion\n");
@@ -83,7 +91,6 @@ void handleGetFile(char * buf,int clientfd,rio_t rio){
 
 void handleBye(int clientfd){
 	Rio_writen(clientfd, "bye\n", 3);
-
 }
 
 void handleLS(int clientfd, rio_t rio){
@@ -91,6 +98,7 @@ void handleLS(int clientfd, rio_t rio){
 	int size_To_Read;
 	Rio_writen(clientfd, "LS\n", 3);
 	if((Rio_readlineb(&rio, buf, MAXLINE))!=0){
+		printf("BUF : %s\n",buf);
 		memcpy(size,buf,strlen(buf)-1);
 		size_To_Read = atoi(size);
 		printf("size=%d\n",size_To_Read);
@@ -151,7 +159,6 @@ int main(int argc, char **argv)
 		toLower(keyword);
 
 		if(strcmp(keyword,"get") == 0){
-			printf("input : %s\n", input);
 			handleGetFile(input,slavefd,rio);
 		}
 		else if(strcmp(keyword,"ls") == 0)

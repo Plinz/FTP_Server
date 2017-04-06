@@ -78,23 +78,23 @@ void my_MKDIR(char* bufContent, int clientfd){
 void getFile(char * bufContent,int clientfd){
 	char size[MAXLINE];
 	int taille;
-
+	FILE *fp;
 	size_t bufContentSize = strlen(bufContent);
 	//bufContent[bufContentSize-1]='\0'; Inutile
-   	FILE *fp = fopen(bufContent, "r");
+   	
 	int error = 0;
-        if (fp != NULL){
+        if ((fp = fopen(bufContent, "r")) != NULL){
 		
 	    /* Calcul de la taille du fichier a envoyer et envoi au client*/
+
+
+	    /* Debut du protocole de transfert */
+            Rio_writen(clientfd, "OK", strlen("OK"));
 	    fseek(fp, 0L, SEEK_END);
 	    taille = ftell(fp);
  	    rewind(fp);
 	    sprintf(size, "%d\n", taille);
-	    printf("%s\n",size);
 	    Rio_writen(clientfd, size, strlen(size));
-
-	    /* Debut du protocole de transfert */
-            Rio_writen(clientfd, "OK", strlen("OK"));
             bufContent = (char*) malloc(BLOCK_SIZE);
 
             while ((bufContentSize = fread(bufContent, sizeof(char), BLOCK_SIZE, fp)) > 0) {
@@ -103,15 +103,23 @@ void getFile(char * bufContent,int clientfd){
                 else
                     Rio_writen(clientfd, "AN ERROR OCCURED DURING THE FILE READING\n", strlen("AN ERROR OCCURED DURING THE FILE READING\n"));
             }
+	    free(bufContent);
         } else
             error = 1;
         if (error){
+
+	    /* Debut du protocole d'erreur */
             char *strerr = strerror(errno);
+	    printf("An error occured : %s + %lu\n",strerr,strlen(strerr));
             Rio_writen(clientfd, "KO", strlen("KO"));
+		
+	    /* Envoi de l'erreur survenue*/
+	    sprintf(size, "%lu\n", strlen(strerr));
+	    printf("Size : %s\n",size);
+	    
+	    Rio_writen(clientfd, size, strlen(size));
             Rio_writen(clientfd, strerr, strlen(strerr));
         }
-        free(bufContent);
-
 }
 
 
@@ -130,7 +138,7 @@ void connectClient(int clientfd)
 			keyword = strtok(finput, " ");
 			if(strcmp(keyword, "GET")==0){
 				keyword = strtok(NULL, " ");
-				printf("keyword : %s\n",keyword);
+				printf("KEYWORD : %s \n",keyword);
 				getFile(keyword, clientfd);
 			}
 			else if(strcmp(keyword, "LS")==0)
