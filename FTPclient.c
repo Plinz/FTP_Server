@@ -164,10 +164,9 @@ int main(int argc, char **argv)
 			keyword = strtok(NULL, " ");
 			handleMKDIR(keyword, slavefd, rio);
 		}
-		else if(strcmp(keyword,"bye") == 0){
-			/*
+		else if(strcmp(keyword,"bye") == 0){	
 			handleBye(slavefd);
-			exit(0);*/
+			exit(0);
 		}
 		else
 			printf("Commande inconnue : %s\n",keyword);

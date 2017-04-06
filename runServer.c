@@ -120,11 +120,10 @@ void connectClient(int clientfd)
     size_t bufContentSize;
     char bufContent[MAXLINE], finput[MAXLINE], *keyword;
     rio_t rio;
-    bool connected = true;
 
 
     Rio_readinitb(&rio, clientfd);
-	while (connected){
+	while (1){
 		if ((bufContentSize = Rio_readlineb(&rio, bufContent, MAXBUF)) != 0) {
 	        printf("Slave received %u bytes && contenu : %s\n", (unsigned int)bufContentSize, bufContent);
 			strncpy(finput,bufContent,strlen(bufContent)-1);
@@ -143,7 +142,7 @@ void connectClient(int clientfd)
 				my_MKDIR(keyword, clientfd);
 			}
 			 else if(strcmp(keyword,"bye") == 0){
-			 	//break;
+			 	break;
 			}
 		}
 		memset(bufContent,0,strlen(bufContent));
