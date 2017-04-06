@@ -76,14 +76,27 @@ void my_MKDIR(char* bufContent, int clientfd){
 }
 
 void getFile(char * bufContent,int clientfd){
+	char size[MAXLINE];
+	int taille;
+
 	size_t bufContentSize = strlen(bufContent);
-	bufContent[bufContentSize-1]='\0';
-    FILE *fp = fopen(bufContent, "r");
+	//bufContent[bufContentSize-1]='\0'; Inutile
+   	FILE *fp = fopen(bufContent, "r");
 	int error = 0;
-	printf("buffContent : %s\n",bufContent);
         if (fp != NULL){
+		
+	    /* Calcul de la taille du fichier a envoyer et envoi au client*/
+	    fseek(fp, 0L, SEEK_END);
+	    taille = ftell(fp);
+ 	    rewind(fp);
+	    sprintf(size, "%d\n", taille);
+	    printf("%s\n",size);
+	    Rio_writen(clientfd, size, strlen(size));
+
+	    /* Debut du protocole de transfert */
             Rio_writen(clientfd, "OK-", strlen("OK-"));
             bufContent = (char*) malloc(BLOCK_SIZE);
+
             while ((bufContentSize = fread(bufContent, sizeof(char), BLOCK_SIZE, fp)) > 0) {
                 if (!ferror(fp))
                     Rio_writen(clientfd, bufContent, bufContentSize);
@@ -118,6 +131,7 @@ void connectClient(int clientfd)
 			keyword = strtok(finput, " ");
 			if(strcmp(keyword, "GET")==0){
 				keyword = strtok(NULL, " ");
+				printf("keyword : %s\n",keyword);
 				getFile(keyword, clientfd);
 			}
 			else if(strcmp(keyword, "LS")==0)
@@ -134,5 +148,6 @@ void connectClient(int clientfd)
 		memset(bufContent,0,strlen(bufContent));
 		memset(finput,0,strlen(finput));
 		memset(keyword,0,strlen(keyword));
+		printf("Commande client terminee.");
 	}
 }

@@ -36,20 +36,37 @@ void printInfo(time_t start,time_t stop,int transfered){
 /* Gestion du transfert de fichier */
 void handleGetFile(char * buf,int clientfd,rio_t rio){
 
-	char filename[MAXLINE];
+	char filename[MAXLINE],size[MAXLINE];
 	time_t start, stop;
 	size_t n;
 	int transfered = 0;
+	int size_To_Read;
+	
 
-	memcpy(filename, &buf[4], strlen(buf)-6);
+	/* Recuperation du nom du fichier */
+	memcpy(filename, &buf[4], strlen(buf));
+	filename[strlen(filename)-1] = '\0';
+	
+	/* Envoi de la commande GET nom_fichier au serveur */	
 	Rio_writen(clientfd, buf, strlen(buf));
+	
 
+	/* Calcul de la taille du fichier a recuperer */
+	if((Rio_readlineb(&rio, buf, MAXLINE))!=0){
+		memcpy(size,buf,strlen(buf)-1);
+		size_To_Read = atoi(size);
+		printf("size=%d\n",size_To_Read);
+		
+	}
+	/*Debut du protocole de recuperation */
 	if ((n = Rio_readlineb(&rio, buf, 3)) != 0) {
 		if (strcmp(buf,"OK") == 0){
 			FILE *fp = fopen(basename(filename), "w+");
 			time(&start);
-			while((n = Rio_readlineb(&rio, buf, MAXLINE)) > 0) {
+			while(transfered < size_To_Read) {
+				n = Rio_readlineb(&rio, buf, MAXLINE);
 				Rio_writen(fileno(fp), buf, n);
+				printf("%s + %lu + %d\n",buf,n, transfered);
 				transfered += n;
 			}
 			fclose(fp); //Ca bug sa race avec cette merde.
@@ -128,8 +145,10 @@ int main(int argc, char **argv)
 		keyword = strtok(finput, " ");
 		toLower(keyword);
 
-		if(strcmp(keyword,"get") == 0)
+		if(strcmp(keyword,"get") == 0){
+			printf("input : %s\n", input);
 			handleGetFile(input,slavefd,rio);
+		}
 		else if(strcmp(keyword,"ls") == 0)
 			handleLS(slavefd,rio);
 		else if(strcmp(keyword,"pwd") == 0)
