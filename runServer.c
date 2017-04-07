@@ -1,11 +1,20 @@
 #include "csapp.h"
 #include <errno.h>
+#include <dirent.h>
 #include <string.h>
 #include <stdlib.h>
 
 #define BLOCK_SIZE 1000000
 
-void my_LS(int clientfd){
+void send_Error(char* error, int clientfd){
+	char size[MAXLINE];
+	Rio_writen(clientfd, "KO", strlen("KO"));
+	sprintf(size, "%lu\n", strlen(error));
+	Rio_writen(clientfd, size, strlen(size));
+	Rio_writen(clientfd, error, strlen(error));
+}
+
+void my_LS2(int clientfd){
 	char buf_ls[MAXLINE], size[MAXLINE];
 	int out_pipe[2], size_Readed;
 	if(pipe(out_pipe) != 0) {exit(1);}
@@ -32,69 +41,67 @@ void my_LS(int clientfd){
 	}
 }
 
-void my_PWD(int clientfd){
-	char * pwd[2]={"pwd",NULL};
-	char buffer[MAXLINE];
-	int out_pipe[2];
-	if(pipe(out_pipe) != 0) {exit(1);}
-	if(fork()==0){
-		dup2(out_pipe[1], STDOUT_FILENO);
-		dup2(out_pipe[1], STDERR_FILENO);
-		Close(out_pipe[1]);
-		if(execvp(pwd[0],pwd) == -1){
-			printf("Error\n");
+void my_LS(int clientfd){
+	char buf[MAXLINE], name[MAXLINE], size[MAXLINE];
+	DIR *dp;
+	struct dirent *ep;
+	dp = opendir ("./");
+
+	if (dp != NULL)	{
+		while ((ep = readdir (dp)) != NULL){
+			sprintf(name, "%s\n", ep->d_name);
+			if(strlen(name) + strlen(buf) < MAXLINE)
+				strcat(buf,name);
 		}
-	} else{
-		Close(out_pipe[1]);
-		waitpid(-1,NULL,0);
-		read(out_pipe[0], buffer, MAXLINE);
-		Close(out_pipe[0]);
-		Rio_writen(clientfd, buffer, strlen(buffer));
+		(void) closedir (dp);
 	}
+	Rio_writen(clientfd, "OK", strlen("OK"));
+	sprintf(size, "%lu\n", strlen(buf));
+	Rio_writen(clientfd, size, strlen(size));
+	Rio_writen(clientfd, buf, strlen(buf));
+}
+
+void my_PWD(int clientfd){
+	char cwd[MAXLINE], size[MAXLINE];
+	if (getcwd(cwd, sizeof(cwd)) != NULL){
+		Rio_writen(clientfd, "OK", strlen("OK"));
+		sprintf(size, "%lu\n", strlen(cwd));
+		Rio_writen(clientfd, size, strlen(size));
+		Rio_writen(clientfd, cwd, strlen(cwd));
+	} else
+		send_Error(strerror(errno), clientfd);
 }
 
 void my_MKDIR(char* bufContent, int clientfd){
-	char * mkdir[3]={"mkdir",bufContent,NULL};
-	char buffer[MAXLINE];
-	int out_pipe[2], resultSize;
-	int saved_stdout = dup(STDOUT_FILENO);
-	if(pipe(out_pipe) != 0) {exit(1);}
-	if(fork()==0){
-		dup2(out_pipe[1], STDOUT_FILENO);
-		dup2(out_pipe[1], STDERR_FILENO);
-		Close(out_pipe[1]);
-		if(execvp(mkdir[0],mkdir) == -1){
-			printf("Error\n");
-		}
-	} else{
-		Close(out_pipe[1]);
-		waitpid(-1,NULL,0);
-		resultSize = read(out_pipe[0], buffer, MAXLINE);
-		Close(out_pipe[0]);
-		dup2(saved_stdout, STDOUT_FILENO);
-		if (resultSize == 0)
-			Rio_writen(clientfd, "Directory successfully created.\n", strlen("Directory successfully created.\n"));
-		else
-			Rio_writen(clientfd, buffer, resultSize);
-	}
+	int resultSize = mkdir(bufContent, 0775);
+	if (resultSize == 0)
+		Rio_writen(clientfd, "OK", strlen("OK"));
+	else
+		send_Error(strerror(errno), clientfd);
+}
+
+void my_RM(char* bufContent, int clientfd){
+	int resultSize = unlink(bufContent);
+	if (resultSize == 0)
+		Rio_writen(clientfd, "OK", strlen("OK"));
+	else
+		send_Error(strerror(errno), clientfd);
+}
+
+void my_RMR(char* bufContent, int clientfd){
+	int resultSize = rmdir(bufContent);
+	if (resultSize == 0)
+		Rio_writen(clientfd, "OK", strlen("OK"));
+	else
+		send_Error(strerror(errno), clientfd);
 }
 
 void my_CD(char* bufContent, int clientfd){
-	char size[MAXLINE];
 	int resultSize = chdir(bufContent);
 	if (resultSize == 0)
 		Rio_writen(clientfd, "OK", strlen("OK"));
-	else{
-		/* Debut du protocole d'erreur */
-		char *strerr = strerror(errno);
-		Rio_writen(clientfd, "KO", strlen("KO"));
-
-		/* Envoi de l'erreur survenue*/
-		sprintf(size, "%lu\n", strlen(strerr));
-
-		Rio_writen(clientfd, size, strlen(size));
-		Rio_writen(clientfd, strerr, strlen(strerr));
-	}
+	else
+		send_Error(strerror(errno), clientfd);
 }
 
 void getFile(char * bufContent,int clientfd){
@@ -167,7 +174,14 @@ void connectClient(int clientfd)
 			} else if(strcmp(keyword, "CD")==0){
 				keyword = strtok(NULL, " ");
 				my_CD(keyword, clientfd);
-			} else if(strcmp(keyword,"BYE") == 0){
+			} else if(strcmp(keyword, "RM")==0){
+				keyword = strtok(NULL, " ");
+				my_RM(keyword, clientfd);
+			} else if(strcmp(keyword, "RMR")==0){
+				keyword = strtok(NULL, " ");
+				my_RMR(keyword, clientfd);
+			}
+			else if(strcmp(keyword,"BYE") == 0){
 			 	break;
 			}
 		}

@@ -5,12 +5,28 @@
 
 char pwd_FTP[MAXLINE];
 
+void handleERROR(rio_t rio){
+	char buffer[MAXLINE];
+	int size_To_Read;
+	if((Rio_readlineb(&rio, buffer, MAXLINE))!=0)
+		size_To_Read = atoi(buffer)+1;
+	if((Rio_readlineb(&rio, buffer, size_To_Read))!=0)
+		printf("Erreur serveur :%s\n",buffer);
+}
+
 void init_prompt(int slavefd,rio_t rio){
 	memset(pwd_FTP,0,strlen(pwd_FTP));
 	char buf[MAXLINE];
+	int size_To_Read;
 	Rio_writen(slavefd, "PWD\n", 4);
-	if((Rio_readlineb(&rio, buf, MAXLINE))!=0){
-		memcpy(pwd_FTP, buf, strlen(buf)-1);
+	if(Rio_readlineb(&rio, buf, 3) != 0){
+		if (strcmp(buf,"OK") == 0){
+			if((Rio_readlineb(&rio, buf, MAXLINE))!=0)
+				size_To_Read = atoi(buf)+1;
+			if((Rio_readlineb(&rio, buf, size_To_Read))!=0)
+				memcpy(pwd_FTP, buf, strlen(buf));
+		} else
+			handleERROR(rio);
 	}
 }
 
@@ -44,9 +60,7 @@ void handleGetFile(char * filename,int slavefd,rio_t rio){
 	int size_To_Read;
 
 	/* Construction de la commande à envoyer*/
-	strcpy(buf,  "GET ");
-	strcat(buf, filename);
-	strcat(buf, "\n");
+	sprintf(buf, "GET %s\n", filename);
 
 	/* Envoi de la commande GET nom_fichier au serveur */
 	Rio_writen(slavefd, buf, strlen(buf));
@@ -86,26 +100,37 @@ void handleGetFile(char * filename,int slavefd,rio_t rio){
 }
 
 void handleCD(char* dir, int slavefd, rio_t rio){
-	char cmd[MAXLINE], size[MAXLINE];
-	int size_To_Read;
-	strcpy(cmd,  "CD ");
-	strcat(cmd, dir);
-	strcat(cmd, "\n");
+	char cmd[MAXLINE];
+	sprintf(cmd, "CD %s\n", dir);
+
 	Rio_writen(slavefd, cmd, strlen(cmd));
 	if(Rio_readlineb(&rio, cmd, 3) != 0){
-		if (strcmp(cmd,"OK") == 0){
+		if (strcmp(cmd,"OK") == 0)
 			init_prompt(slavefd, rio);
-		} else {
-			/* Une erreur est survenue : recuperation de l'erreur */
-			if((Rio_readlineb(&rio, cmd, MAXLINE))!=0){
-				memcpy(size,cmd,strlen(cmd));
-				size_To_Read = atoi(size);
-			}
-			if((Rio_readlineb(&rio, cmd, size_To_Read))!=0){
-				printf("Erreur serveur :%s\n",cmd);
-			}
-		}
+		else
+			handleERROR(rio);
+
 	}
+}
+
+void handleRM(char* file, int slavefd, rio_t rio){
+	char cmd[MAXLINE];
+	sprintf(cmd, "RM %s\n", file);
+
+	Rio_writen(slavefd, cmd, strlen(cmd));
+	if(Rio_readlineb(&rio, cmd, 3) != 0)
+		if (strcmp(cmd,"KO") == 0)
+			handleERROR(rio);
+}
+
+void handleRMR(char* dir, int slavefd, rio_t rio){
+	char cmd[MAXLINE];
+	sprintf(cmd, "RMR %s\n", dir);
+
+	Rio_writen(slavefd, cmd, strlen(cmd));
+	if(Rio_readlineb(&rio, cmd, 3) != 0)
+		if (strcmp(cmd,"KO") == 0)
+			handleERROR(rio);
 }
 
 void handleBye(int slavefd){
@@ -113,37 +138,47 @@ void handleBye(int slavefd){
 }
 
 void handleLS(int slavefd, rio_t rio){
-	char buf[MAXLINE], size[MAXLINE];
+	char buf[MAXLINE];
 	int size_To_Read;
 	Rio_writen(slavefd, "LS\n", 3);
 	if(Rio_readlineb(&rio, buf, 3) != 0){
 		if (strcmp(buf,"OK") == 0){
 			if((Rio_readlineb(&rio, buf, MAXLINE))!=0){
-				memcpy(size,buf,strlen(buf)-1);
-				size_To_Read = atoi(size);
-				if((Rio_readnb(&rio, buf, (size_To_Read-1))) !=0){
+				size_To_Read = atoi(buf)-1;
+				if((Rio_readnb(&rio, buf, size_To_Read)) !=0){
 					printf("%s\n",buf);
 				}
 			}
-		}
+		} else
+			handleERROR(rio);
 	}
 }
 
 void handlePWD(int slavefd, rio_t rio){
 	char buf[MAXLINE];
+	int size_To_Read;
 	Rio_writen(slavefd, "PWD\n", 4);
-	if((Rio_readlineb(&rio, buf, MAXLINE))!=0)
-		printf("%s",buf);
+	if(Rio_readlineb(&rio, buf, 3) != 0){
+		if (strcmp(buf,"OK") == 0){
+			if((Rio_readlineb(&rio, buf, MAXLINE))!=0){
+				size_To_Read = atoi(buf)+1;
+				if((Rio_readlineb(&rio, buf, size_To_Read))!=0)
+					printf("%s\n",buf);
+			}
+		} else
+			handleERROR(rio);
+	}
+
 }
 
 void handleMKDIR(char *dir, int slavefd, rio_t rio){
-	char buf[MAXLINE], cmd[MAXLINE];
-   	strcpy(cmd,  "MKDIR ");
-	strcat(cmd, dir);
-	strcat(cmd, "\n");
+	char cmd[MAXLINE];
+	sprintf(cmd, "MKDIR %s\n", dir);
+
 	Rio_writen(slavefd, cmd, strlen(cmd));
-	if((Rio_readlineb(&rio, buf, MAXLINE))!=0)
-		printf("%s",buf);
+	if(Rio_readlineb(&rio, cmd, 3) != 0)
+		if (strcmp(cmd,"KO") == 0)
+			handleERROR(rio);
 }
 
 
@@ -189,6 +224,13 @@ int main(int argc, char **argv)
 		} else if(strcmp(keyword,"mkdir") == 0){
 			keyword = strtok(NULL, " ");
 			handleMKDIR(keyword, slavefd, rio);
+		} else if(strcmp(keyword,"rm") == 0){
+			keyword = strtok(NULL, " ");
+			if (strcmp(keyword, "-r") == 0){
+				keyword = strtok(NULL, " ");
+				handleRMR(keyword, slavefd, rio);
+			} else
+				handleRM(keyword, slavefd, rio);
 		}
 		else if(strcmp(keyword,"bye") == 0){
 			handleBye(slavefd);
