@@ -75,6 +75,24 @@ void my_MKDIR(char* bufContent, int clientfd){
 	}
 }
 
+void my_CD(char* bufContent, int clientfd){
+	char size[MAXLINE];
+	int resultSize = chdir(bufContent);
+	if (resultSize == 0)
+		Rio_writen(clientfd, "OK", strlen("OK"));
+	else{
+		/* Debut du protocole d'erreur */
+		char *strerr = strerror(errno);
+		Rio_writen(clientfd, "KO", strlen("KO"));
+
+		/* Envoi de l'erreur survenue*/
+		sprintf(size, "%lu\n", strlen(strerr));
+
+		Rio_writen(clientfd, size, strlen(size));
+		Rio_writen(clientfd, strerr, strlen(strerr));
+	}
+}
+
 void getFile(char * bufContent,int clientfd){
 	char size[MAXLINE];
 	int taille;
@@ -107,18 +125,17 @@ void getFile(char * bufContent,int clientfd){
         } else
             error = 1;
         if (error){
+		    /* Debut du protocole d'erreur */
+	        char *strerr = strerror(errno);
+		    printf("An error occured : %s + %lu\n",strerr,strlen(strerr));
+	        Rio_writen(clientfd, "KO", strlen("KO"));
 
-	    /* Debut du protocole d'erreur */
-            char *strerr = strerror(errno);
-	    printf("An error occured : %s + %lu\n",strerr,strlen(strerr));
-            Rio_writen(clientfd, "KO", strlen("KO"));
+		    /* Envoi de l'erreur survenue*/
+		    sprintf(size, "%lu\n", strlen(strerr));
+		    printf("Size : %s\n",size);
 
-	    /* Envoi de l'erreur survenue*/
-	    sprintf(size, "%lu\n", strlen(strerr));
-	    printf("Size : %s\n",size);
-
-	    Rio_writen(clientfd, size, strlen(size));
-            Rio_writen(clientfd, strerr, strlen(strerr));
+		    Rio_writen(clientfd, size, strlen(size));
+	        Rio_writen(clientfd, strerr, strlen(strerr));
         }
 }
 
@@ -148,8 +165,10 @@ void connectClient(int clientfd)
 			else if(strcmp(keyword, "MKDIR")==0){
 				keyword = strtok(NULL, " ");
 				my_MKDIR(keyword, clientfd);
-			}
-			 else if(strcmp(keyword,"BYE") == 0){
+			} else if(strcmp(keyword, "CD")==0){
+				keyword = strtok(NULL, " ");
+				my_CD(keyword, clientfd);
+			} else if(strcmp(keyword,"BYE") == 0){
 			 	break;
 			}
 		}

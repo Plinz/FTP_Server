@@ -5,9 +5,10 @@
 
 char pwd_FTP[MAXLINE];
 
-void init_prompt(int clientfd,rio_t rio){
+void init_prompt(int slavefd,rio_t rio){
+	memset(pwd_FTP,0,strlen(pwd_FTP));
 	char buf[MAXLINE];
-	Rio_writen(clientfd, "PWD\n", 4);
+	Rio_writen(slavefd, "PWD\n", 4);
 	if((Rio_readlineb(&rio, buf, MAXLINE))!=0){
 		memcpy(pwd_FTP, buf, strlen(buf)-1);
 	}
@@ -34,7 +35,7 @@ void printInfo(time_t start,time_t stop,int transfered){
 }
 
 /* Gestion du transfert de fichier */
-void handleGetFile(char * filename,int clientfd,rio_t rio){
+void handleGetFile(char * filename,int slavefd,rio_t rio){
 
 	char buf[MAXLINE],size[MAXLINE];
 	time_t start, stop;
@@ -48,7 +49,7 @@ void handleGetFile(char * filename,int clientfd,rio_t rio){
 	strcat(buf, "\n");
 
 	/* Envoi de la commande GET nom_fichier au serveur */
-	Rio_writen(clientfd, buf, strlen(buf));
+	Rio_writen(slavefd, buf, strlen(buf));
 
 	if ((n = Rio_readlineb(&rio, buf, 3)) != 0) {
 		if (strcmp(buf,"OK") == 0){
@@ -73,30 +74,48 @@ void handleGetFile(char * filename,int clientfd,rio_t rio){
 		} else {
 			/* Une erreur est survenue : recuperation de l'erreur */
 			if((Rio_readlineb(&rio, buf, MAXLINE))!=0){
-				//memcpy(size,buf,strlen(buf)-1); NE marche pas, pourquoi mystere
 				memcpy(size,buf,strlen(buf));
 				size_To_Read = atoi(size);
 	  		}
 			if((Rio_readlineb(&rio, buf, size_To_Read))!=0){
 				printf("Erreur serveur :%s\n",buf);
 			}
-			/*
-			while(Rio_readlineb(&rio, buf, MAXLINE) > 0)
-				printf("%s\n",buf);
-			*/
 		}
    } else
 	   printf("Error : Server closed the connexion\n");
 }
 
-void handleBye(int clientfd){
-	Rio_writen(clientfd, "BYE\n", 3);
+void handleCD(char* dir, int slavefd, rio_t rio){
+	char cmd[MAXLINE], size[MAXLINE];
+	int size_To_Read;
+	strcpy(cmd,  "CD ");
+	strcat(cmd, dir);
+	strcat(cmd, "\n");
+	Rio_writen(slavefd, cmd, strlen(cmd));
+	if(Rio_readlineb(&rio, cmd, 3) != 0){
+		if (strcmp(cmd,"OK") == 0){
+			init_prompt(slavefd, rio);
+		} else {
+			/* Une erreur est survenue : recuperation de l'erreur */
+			if((Rio_readlineb(&rio, cmd, MAXLINE))!=0){
+				memcpy(size,cmd,strlen(cmd));
+				size_To_Read = atoi(size);
+			}
+			if((Rio_readlineb(&rio, cmd, size_To_Read))!=0){
+				printf("Erreur serveur :%s\n",cmd);
+			}
+		}
+	}
 }
 
-void handleLS(int clientfd, rio_t rio){
+void handleBye(int slavefd){
+	Rio_writen(slavefd, "BYE\n", 3);
+}
+
+void handleLS(int slavefd, rio_t rio){
 	char buf[MAXLINE], size[MAXLINE];
 	int size_To_Read;
-	Rio_writen(clientfd, "LS\n", 3);
+	Rio_writen(slavefd, "LS\n", 3);
 	if((Rio_readlineb(&rio, buf, MAXLINE))!=0){
 		printf("BUF : %s\n",buf);
 		memcpy(size,buf,strlen(buf)-1);
@@ -108,23 +127,21 @@ void handleLS(int clientfd, rio_t rio){
 			printf("ok\n");
 		}
 	}
-	// while((Rio_readlineb(&rio, buf, MAXLINE))>0)
-	// 	printf("%s",buf);
 }
 
-void handlePWD(int clientfd, rio_t rio){
+void handlePWD(int slavefd, rio_t rio){
 	char buf[MAXLINE];
-	Rio_writen(clientfd, "PWD\n", 4);
+	Rio_writen(slavefd, "PWD\n", 4);
 	if((Rio_readlineb(&rio, buf, MAXLINE))!=0)
 		printf("%s",buf);
 }
 
-void handleMKDIR(char *dir, int clientfd, rio_t rio){
+void handleMKDIR(char *dir, int slavefd, rio_t rio){
 	char buf[MAXLINE], cmd[MAXLINE];
    	strcpy(cmd,  "MKDIR ");
 	strcat(cmd, dir);
 	strcat(cmd, "\n");
-	Rio_writen(clientfd, cmd, strlen(cmd));
+	Rio_writen(slavefd, cmd, strlen(cmd));
 	if((Rio_readlineb(&rio, buf, MAXLINE))!=0)
 		printf("%s",buf);
 }
@@ -166,9 +183,10 @@ int main(int argc, char **argv)
 			handleLS(slavefd,rio);
 		else if(strcmp(keyword,"pwd") == 0)
 			handlePWD(slavefd,rio);
-		// else if(strcmp(keyword,"cd") == 0)
-		// 	handleCD(slavefd,rio);
-		else if(strcmp(keyword,"mkdir") == 0){
+		else if(strcmp(keyword,"cd") == 0){
+			keyword = strtok(NULL, " ");
+			handleCD(keyword, slavefd, rio);
+		} else if(strcmp(keyword,"mkdir") == 0){
 			keyword = strtok(NULL, " ");
 			handleMKDIR(keyword, slavefd, rio);
 		}
