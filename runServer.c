@@ -7,7 +7,7 @@
 
 void my_LS(int clientfd){
 	char buf_ls[MAXLINE], size[MAXLINE];
-	int out_pipe[2];
+	int out_pipe[2], size_Readed;
 	if(pipe(out_pipe) != 0) {exit(1);}
 	if(fork()==0){
 		dup2(out_pipe[1], STDOUT_FILENO);
@@ -20,11 +20,15 @@ void my_LS(int clientfd){
 	} else{
 		Close(out_pipe[1]);
 		waitpid(-1,NULL,0);
-		read(out_pipe[0], buf_ls, MAXLINE);
+		size_Readed = read(out_pipe[0], buf_ls, MAXLINE);
 		Close(out_pipe[0]);
-		sprintf(size, "%lu\n", strlen(buf_ls));
-		Rio_writen(clientfd, size, strlen(size));
-		Rio_writen(clientfd, buf_ls, strlen(buf_ls));
+		if (size_Readed != 0){
+			Rio_writen(clientfd, "OK", strlen("OK"));
+			sprintf(size, "%lu\n", strlen(buf_ls));
+			Rio_writen(clientfd, size, strlen(size));
+			Rio_writen(clientfd, buf_ls, strlen(buf_ls));
+		} else
+		Rio_writen(clientfd, "KO", strlen("KO"));
 	}
 }
 
@@ -98,21 +102,18 @@ void getFile(char * bufContent,int clientfd){
 	int taille;
 	FILE *fp;
 	size_t bufContentSize = strlen(bufContent);
-	//bufContent[bufContentSize-1]='\0'; Inutile
 
 	int error = 0;
         if ((fp = fopen(bufContent, "r")) != NULL){
-
-	    /* Calcul de la taille du fichier a envoyer et envoi au client*/
-
-
-	    /* Debut du protocole de transfert */
+	    	/* Debut du protocole de transfert */
             Rio_writen(clientfd, "OK", strlen("OK"));
-	    fseek(fp, 0L, SEEK_END);
-	    taille = ftell(fp);
- 	    rewind(fp);
-	    sprintf(size, "%d\n", taille);
-	    Rio_writen(clientfd, size, strlen(size));
+			/* Calcul de la taille du fichier a envoyer et envoi au client*/
+
+	    	fseek(fp, 0L, SEEK_END);
+	    	taille = ftell(fp);
+ 	    	rewind(fp);
+	    	sprintf(size, "%d\n", taille);
+	    	Rio_writen(clientfd, size, strlen(size));
             bufContent = (char*) malloc(BLOCK_SIZE);
 
             while ((bufContentSize = fread(bufContent, sizeof(char), BLOCK_SIZE, fp)) > 0) {
@@ -121,19 +122,17 @@ void getFile(char * bufContent,int clientfd){
                 else
                     Rio_writen(clientfd, "AN ERROR OCCURED DURING THE FILE READING\n", strlen("AN ERROR OCCURED DURING THE FILE READING\n"));
             }
-	    free(bufContent);
+	    	free(bufContent);
         } else
             error = 1;
         if (error){
 		    /* Debut du protocole d'erreur */
 	        char *strerr = strerror(errno);
-		    printf("An error occured : %s + %lu\n",strerr,strlen(strerr));
+		    printf("[RUNNING][%d] An error occured : %s\n",getpid(), strerr);
 	        Rio_writen(clientfd, "KO", strlen("KO"));
 
 		    /* Envoi de l'erreur survenue*/
 		    sprintf(size, "%lu\n", strlen(strerr));
-		    printf("Size : %s\n",size);
-
 		    Rio_writen(clientfd, size, strlen(size));
 	        Rio_writen(clientfd, strerr, strlen(strerr));
         }
@@ -150,7 +149,7 @@ void connectClient(int clientfd)
     Rio_readinitb(&rio, clientfd);
 	while (1){
 		if ((bufContentSize = Rio_readlineb(&rio, bufContent, MAXBUF)) != 0) {
-	        printf("Slave received %u bytes && contenu : %s\n", (unsigned int)bufContentSize, bufContent);
+			printf("[RUNNING][%d] SIZE : %luB CONTENT : %s", getpid(), bufContentSize, bufContent);
 			strncpy(finput,bufContent,strlen(bufContent)-1);
 			keyword = strtok(finput, " ");
 			if(strcmp(keyword, "GET")==0){

@@ -116,15 +116,15 @@ void handleLS(int slavefd, rio_t rio){
 	char buf[MAXLINE], size[MAXLINE];
 	int size_To_Read;
 	Rio_writen(slavefd, "LS\n", 3);
-	if((Rio_readlineb(&rio, buf, MAXLINE))!=0){
-		printf("BUF : %s\n",buf);
-		memcpy(size,buf,strlen(buf)-1);
-		size_To_Read = atoi(size);
-		printf("size=%d\n",size_To_Read);
-		if((Rio_readnb(&rio, buf, (size_To_Read-1))) !=0){
-			printf("%s\n",buf);
-		} else {
-			printf("ok\n");
+	if(Rio_readlineb(&rio, buf, 3) != 0){
+		if (strcmp(buf,"OK") == 0){
+			if((Rio_readlineb(&rio, buf, MAXLINE))!=0){
+				memcpy(size,buf,strlen(buf)-1);
+				size_To_Read = atoi(size);
+				if((Rio_readnb(&rio, buf, (size_To_Read-1))) !=0){
+					printf("%s\n",buf);
+				}
+			}
 		}
 	}
 }
@@ -156,7 +156,7 @@ int main(int argc, char **argv)
 	rio_t rio;
 
 	if (argc != 2) {
-		fprintf(stderr, "usage: %s <host>\n", argv[0]);
+		fprintf(stderr, "USAGE: %s <HOST>\n", argv[0]);
 		exit(0);
 	}
 	master = argv[1];
@@ -165,7 +165,7 @@ int main(int argc, char **argv)
 	listenfd = Open_listenfd(2123);
 	while((slavefd = Accept(listenfd, (SA *)&slaveaddr, &slavelen)) == -1){}
 
-	printf("client connected to server OS port : %d, addr : %s\n", ntohs(slaveaddr.sin_port), inet_ntoa(slaveaddr.sin_addr));
+	printf("Server connexion : address : %s port : %d\n", inet_ntoa(slaveaddr.sin_addr), ntohs(slaveaddr.sin_port));
 	Rio_readinitb(&rio, slavefd);
 	init_prompt(slavefd,rio);
 	display_prompt();
@@ -195,7 +195,7 @@ int main(int argc, char **argv)
 			exit(0);
 		}
 		else
-			printf("Commande inconnue : %s\n",keyword);
+			printf("Unknow command : %s\n",keyword);
 		display_prompt();
 		memset(input,0,strlen(input));
 		memset(finput,0,strlen(finput));

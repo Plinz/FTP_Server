@@ -10,13 +10,17 @@ int pid[HANDLER_PROCESS];
 void echo(int connfd);
 
 void handlerFin(int sig){
+	printf("[SHUTDOWN] KILLING PROCESS\n");
 	for(int i = 0; i < HANDLER_PROCESS;i++){
 		kill(pid[i],SIGINT);
+		printf("[SHUTDOWN] PROCESS PID=%d KILLED\n", pid[i]);
 	}
+	printf("[SHUTDOWN] SHUTDOWN\n");
 	exit(0);
 }
 
 char ** loadSlavesProperties(){
+	printf("[STARTING UP] LOAD SLAVES PROPERTIES\n");
 	char ** slaves = NULL;
 
 	int index = 0;
@@ -34,6 +38,7 @@ char ** loadSlavesProperties(){
 		slaves[index] = malloc(bufContentSize);
 		strncpy(slaves[index], bufContent, bufContentSize);
 		slaves[index][strlen(slaves[index])-1]='\0';
+		printf("[STARTING UP] LOAD SLAVES PROPERTIES : NEW SLAVE NUMBER %d HOSTNAME %s\n", index, slaves[index]);
 		index++;
 		while((length = getline(&bufContent, &bufContentSize, prop)) != -1){
 			slaves = realloc(slaves, sizeof(*slaves) * (index+1));
@@ -42,6 +47,7 @@ char ** loadSlavesProperties(){
 			slaves[index] = malloc(bufContentSize);
 			strncpy(slaves[index], bufContent, bufContentSize);
 			slaves[index][strlen(slaves[index])-1]='\0';
+			printf("[STARTING UP] LOAD SLAVES PROPERTIES : NEW SLAVE NUMBER %d HOSTNAME %s\n", index, slaves[index]);
 			index++;
 		}
 	}
@@ -95,6 +101,8 @@ void handle(int listenfd, char** slaves){
 		while((clientfd = Accept(listenfd, (SA *)&clientaddr, &clientlen)) == -1){}
 		Getnameinfo((SA *) &clientaddr, clientlen, client_hostname, MAX_NAME_LEN, 0, 0, 0);
 
+		printf("[RUNNING] NEW CONNEXION : HOSTNAME : %s HANDLE BY %s\n", client_hostname, slaves[nextSlaves]);
+
 		// for(int i=0; i<NB_SLAVES; i++){
 		// 	if (strcmp(slaves[i], client_hostname) == 0){
 		// 		is_Slave = 1;
@@ -126,18 +134,22 @@ int main(int argc, char **argv)
         exit(0);
     }
 
+
+	printf("[STARTING UP] INITIALIZATION OF THE LOAD BALANCER\n");
     listenfd = Open_listenfd(2121);
 	signal(SIGINT,handlerFin);
 	slaves = loadSlavesProperties();
 
+	printf("[STARTING UP] LAUNCHING OF %d PROCESS\n", HANDLER_PROCESS);
 	for(int i = 0 ; i < HANDLER_PROCESS;i++){
+		printf("[STARTING UP] LAUNCH PROCESS NUMBER %d\n", i);
 		if((pid[i] = fork()) == 0){
 			signal(SIGINT,SIG_DFL);
 			handle(listenfd, slaves);
 			exit(0);
 		}
 	}
-
+	printf("[STARTING UP] END OF LAUNCH\n[RUNNING] READY TO LISTEN ON PORT 2121\n");
    	while (1) {}
     exit(0);
 }
