@@ -81,10 +81,10 @@ void getFile(char * bufContent,int clientfd){
 	FILE *fp;
 	size_t bufContentSize = strlen(bufContent);
 	//bufContent[bufContentSize-1]='\0'; Inutile
-   	
+
 	int error = 0;
         if ((fp = fopen(bufContent, "r")) != NULL){
-		
+
 	    /* Calcul de la taille du fichier a envoyer et envoi au client*/
 
 
@@ -112,11 +112,11 @@ void getFile(char * bufContent,int clientfd){
             char *strerr = strerror(errno);
 	    printf("An error occured : %s + %lu\n",strerr,strlen(strerr));
             Rio_writen(clientfd, "KO", strlen("KO"));
-		
+
 	    /* Envoi de l'erreur survenue*/
 	    sprintf(size, "%lu\n", strlen(strerr));
 	    printf("Size : %s\n",size);
-	    
+
 	    Rio_writen(clientfd, size, strlen(size));
             Rio_writen(clientfd, strerr, strlen(strerr));
         }
@@ -149,7 +149,7 @@ void connectClient(int clientfd)
 				keyword = strtok(NULL, " ");
 				my_MKDIR(keyword, clientfd);
 			}
-			 else if(strcmp(keyword,"bye") == 0){
+			 else if(strcmp(keyword,"BYE") == 0){
 			 	break;
 			}
 		}

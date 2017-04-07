@@ -34,35 +34,35 @@ void printInfo(time_t start,time_t stop,int transfered){
 }
 
 /* Gestion du transfert de fichier */
-void handleGetFile(char * buf,int clientfd,rio_t rio){
+void handleGetFile(char * filename,int clientfd,rio_t rio){
 
-	char filename[MAXLINE],size[MAXLINE];
+	char buf[MAXLINE],size[MAXLINE];
 	time_t start, stop;
 	size_t n;
 	int transfered = 0;
 	int size_To_Read;
-	
-	/* Recuperation du nom du fichier */
-	memcpy(filename, &buf[4], strlen(buf));
-	filename[strlen(filename)-1] = '\0';
-	
-	/* Envoi de la commande GET nom_fichier au serveur */	
+
+	/* Construction de la commande à envoyer*/
+	strcpy(buf,  "GET ");
+	strcat(buf, filename);
+	strcat(buf, "\n");
+
+	/* Envoi de la commande GET nom_fichier au serveur */
 	Rio_writen(clientfd, buf, strlen(buf));
-	
+
 	if ((n = Rio_readlineb(&rio, buf, 3)) != 0) {
 		if (strcmp(buf,"OK") == 0){
 			/* Calcul de la taille du fichier a recuperer */
 			if((Rio_readlineb(&rio, buf, MAXLINE))!=0){
 				memcpy(size,buf,strlen(buf));
 				size_To_Read = atoi(size);
-			
+
 				/*Debut du protocole de recuperation */
 				FILE *fp = fopen(basename(filename), "w+");
 				time(&start);
 				while(transfered < size_To_Read) {
 					n = Rio_readlineb(&rio, buf, MAXLINE);
 					Rio_writen(fileno(fp), buf, n);
-					printf("%s\n",buf);
 					transfered += n;
 				}
 				fclose(fp);
@@ -90,7 +90,7 @@ void handleGetFile(char * buf,int clientfd,rio_t rio){
 }
 
 void handleBye(int clientfd){
-	Rio_writen(clientfd, "bye\n", 3);
+	Rio_writen(clientfd, "BYE\n", 3);
 }
 
 void handleLS(int clientfd, rio_t rio){
@@ -159,7 +159,8 @@ int main(int argc, char **argv)
 		toLower(keyword);
 
 		if(strcmp(keyword,"get") == 0){
-			handleGetFile(input,slavefd,rio);
+			keyword = strtok(NULL, " ");
+			handleGetFile(keyword,slavefd,rio);
 		}
 		else if(strcmp(keyword,"ls") == 0)
 			handleLS(slavefd,rio);
@@ -171,7 +172,7 @@ int main(int argc, char **argv)
 			keyword = strtok(NULL, " ");
 			handleMKDIR(keyword, slavefd, rio);
 		}
-		else if(strcmp(keyword,"bye") == 0){	
+		else if(strcmp(keyword,"bye") == 0){
 			handleBye(slavefd);
 			exit(0);
 		}
