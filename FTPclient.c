@@ -3,6 +3,8 @@
 #include <time.h>
 #include <libgen.h>
 
+#define BLOCK_SIZE 1000000
+
 char pwd_FTP[MAXLINE];
 
 void handleERROR(rio_t rio){
@@ -50,8 +52,8 @@ void printInfo(time_t start,time_t stop,int transfered){
 		printf("Fin du transfert de fichier : %d octets transférés en %f secondes, vitesse :%f Kb/s\n",transfered, duration, vitesse);
 }
 
-/* Gestion du transfert de fichier */
-void handleGetFile(char * filename,int slavefd,rio_t rio){
+/* Gestion de récupération de fichier */
+void handleGET(char * filename,int slavefd,rio_t rio){
 
 	char buf[MAXLINE],size[MAXLINE];
 	time_t start, stop;
@@ -99,6 +101,42 @@ void handleGetFile(char * filename,int slavefd,rio_t rio){
 	   printf("Error : Server closed the connexion\n");
 }
 
+void handlePUT(char * filename,int slavefd,rio_t rio){
+	char bufContent[MAXLINE], size[MAXLINE];
+	int taille;
+	FILE *fp;
+	size_t bufContentSize = strlen(filename);
+
+	/* Construction de la commande à envoyer*/
+	sprintf(bufContent, "PUT %s\n", filename);
+	/* Envoi de la commande GET nom_fichier au serveur */
+	Rio_writen(slavefd, bufContent, strlen(bufContent));
+
+
+	int error = 0;
+    if ((fp = fopen(filename, "r")) != NULL){
+
+    	fseek(fp, 0L, SEEK_END);
+    	taille = ftell(fp);
+	    rewind(fp);
+    	sprintf(size, "%d\n", taille);
+    	Rio_writen(slavefd, size, strlen(size));
+        filename = (char*) malloc(BLOCK_SIZE);
+
+        while ((bufContentSize = fread(filename, sizeof(char), BLOCK_SIZE, fp)) > 0) {
+            if (!ferror(fp))
+                Rio_writen(slavefd, filename, bufContentSize);
+            else
+                Rio_writen(slavefd, "AN ERROR OCCURED DURING THE FILE READING\n", strlen("AN ERROR OCCURED DURING THE FILE READING\n"));
+        }
+    	free(filename);
+    } else
+        error = 1;
+    if (error)
+		printf("An error occured : %s\n", strerror(errno));
+
+}
+
 void handleCD(char* dir, int slavefd, rio_t rio){
 	char cmd[MAXLINE];
 	sprintf(cmd, "CD %s\n", dir);
@@ -133,7 +171,7 @@ void handleRMR(char* dir, int slavefd, rio_t rio){
 			handleERROR(rio);
 }
 
-void handleBye(int slavefd){
+void handleBYE(int slavefd){
 	Rio_writen(slavefd, "BYE\n", 3);
 }
 
@@ -152,6 +190,7 @@ void handleLS(int slavefd, rio_t rio){
 		} else
 			handleERROR(rio);
 	}
+	memset(buf,0,strlen(buf));
 }
 
 void handlePWD(int slavefd, rio_t rio){
@@ -212,9 +251,11 @@ int main(int argc, char **argv)
 
 		if(strcmp(keyword,"get") == 0){
 			keyword = strtok(NULL, " ");
-			handleGetFile(keyword,slavefd,rio);
-		}
-		else if(strcmp(keyword,"ls") == 0)
+			handleGET(keyword,slavefd,rio);
+		} else if(strcmp(keyword,"put") == 0){
+			keyword = strtok(NULL, " ");
+			handlePUT(keyword,slavefd,rio);
+		} else if(strcmp(keyword,"ls") == 0)
 			handleLS(slavefd,rio);
 		else if(strcmp(keyword,"pwd") == 0)
 			handlePWD(slavefd,rio);
@@ -231,12 +272,10 @@ int main(int argc, char **argv)
 				handleRMR(keyword, slavefd, rio);
 			} else
 				handleRM(keyword, slavefd, rio);
-		}
-		else if(strcmp(keyword,"bye") == 0){
-			handleBye(slavefd);
+		} else if(strcmp(keyword,"bye") == 0){
+			handleBYE(slavefd);
 			exit(0);
-		}
-		else
+		} else
 			printf("Unknow command : %s\n",keyword);
 		display_prompt();
 		memset(input,0,strlen(input));

@@ -5,9 +5,11 @@
 #define HANDLER_PROCESS 5
 
 int pid[HANDLER_PROCESS];
+int clientfd;
+
 void connectClient(int clientfd);
 
-void handlerFin(int sig){
+void handlerParent(int sig){
 	int i;
 	printf("[SHUTDOWN] KILLING PROCESS\n");
 	for(i = 0; i < HANDLER_PROCESS;i++){
@@ -18,9 +20,17 @@ void handlerFin(int sig){
 	exit(0);
 }
 
-void handle(int listenfd){
+void handlerChild(int sig){
+	if (clientfd > 0){
+		printf("[SHUTDOWN][%d] CLOSE CONNEXION FD=%d\n", getpid(), clientfd);
+		Close(clientfd);
+	}
+	exit(0);
+}
 
-	int masterfd,clientfd;
+void handle(int listenfd, int index){
+
+	int masterfd;
 	struct sockaddr_in clientaddr;
 	socklen_t clientlen;
 	clientlen = (socklen_t)sizeof(clientaddr);
@@ -38,8 +48,9 @@ void handle(int listenfd){
 	    Rio_readinitb(&rio, masterfd);
 	    if ((bufContentSize = Rio_readlineb(&rio, bufContent, MAXLINE)) != 0) {
 			printf("[RUNNING][%d] NEW CONNEXION : HOSTNAME : %s\n", getpid(), bufContent);
-			connectClient(clientfd=Open_clientfd(bufContent, 2123));
+			connectClient(clientfd = Open_clientfd(bufContent, 2123));
 			Close(clientfd);
+			clientfd = -1;
 	        free(bufContent);
 	    }
 	}
@@ -57,14 +68,14 @@ int main(int argc, char **argv)
 
 	printf("[STARTING UP] INITIALIZATION OF THE SLAVE\n");
     listenfd = Open_listenfd(2122);
-	signal(SIGINT,handlerFin);
+	signal(SIGINT,handlerParent);
 
 	printf("[STARTING UP] LAUNCHING OF %d PROCESS\n", HANDLER_PROCESS);
 	for(i = 0 ; i < HANDLER_PROCESS; i++){
 		printf("[STARTING UP] LAUNCH PROCESS NUMBER %d\n", i);
 		if((pid[i] = fork()) == 0){
-			signal(SIGINT,SIG_DFL);
-			handle(listenfd);
+			signal(SIGINT,handlerChild);
+			handle(listenfd, i);
 			exit(0);
 		}
 	}
