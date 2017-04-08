@@ -10,8 +10,9 @@ int pid[HANDLER_PROCESS];
 void echo(int connfd);
 
 void handlerFin(int sig){
+	int i;
 	printf("[SHUTDOWN] KILLING PROCESS\n");
-	for(int i = 0; i < HANDLER_PROCESS;i++){
+	for(i = 0; i < HANDLER_PROCESS;i++){
 		kill(pid[i],SIGINT);
 		printf("[SHUTDOWN] PROCESS PID=%d KILLED\n", pid[i]);
 	}
@@ -74,6 +75,7 @@ void synchronize_Single_Slave(char* slave_Hostname, char* bufContent, size_t buf
 
 void synchronize_Slaves (int slavefd, char* slave_Source, char** slaves){
 	char *bufContent;
+	int i;
 	size_t bufContentSize;
 	rio_t rio;
 
@@ -81,7 +83,7 @@ void synchronize_Slaves (int slavefd, char* slave_Source, char** slaves){
 	Rio_readinitb(&rio, slavefd);
 	if ((bufContentSize = Rio_readlineb(&rio, bufContent, MAXLINE)) != 0) {
 		Close(slavefd);
-		for(int i=0; i<NB_SLAVES; i++)
+		for(i=0; i<NB_SLAVES; i++)
 			if(strcmp(slaves[i], slave_Source) != 0)
 				synchronize_Single_Slave(slaves[i], bufContent, bufContentSize);
 		free(bufContent);
@@ -128,7 +130,7 @@ void handle(int listenfd, char** slaves){
 int main(int argc, char **argv)
 {
 	char **slaves;
-    int listenfd;
+    int listenfd, i;
     if (argc != 1) {
         fprintf(stderr, "usage: %s\n", argv[0]);
         exit(0);
@@ -141,7 +143,7 @@ int main(int argc, char **argv)
 	slaves = loadSlavesProperties();
 
 	printf("[STARTING UP] LAUNCHING OF %d PROCESS\n", HANDLER_PROCESS);
-	for(int i = 0 ; i < HANDLER_PROCESS;i++){
+	for(i = 0 ; i < HANDLER_PROCESS;i++){
 		printf("[STARTING UP] LAUNCH PROCESS NUMBER %d\n", i);
 		if((pid[i] = fork()) == 0){
 			signal(SIGINT,SIG_DFL);

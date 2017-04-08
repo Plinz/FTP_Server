@@ -11,7 +11,7 @@ void handleERROR(rio_t rio){
 	if((Rio_readlineb(&rio, buffer, MAXLINE))!=0)
 		size_To_Read = atoi(buffer)+1;
 	if((Rio_readlineb(&rio, buffer, size_To_Read))!=0)
-		printf("Erreur serveur :%s\n",buffer);
+		printf("Erreur serveur : %s\n",buffer);
 }
 
 void init_prompt(int slavefd,rio_t rio){
@@ -92,7 +92,7 @@ void handleGetFile(char * filename,int slavefd,rio_t rio){
 				size_To_Read = atoi(size);
 	  		}
 			if((Rio_readlineb(&rio, buf, size_To_Read))!=0){
-				printf("Erreur serveur :%s\n",buf);
+				printf("Erreur serveur : %s\n",buf);
 			}
 		}
    } else

@@ -8,8 +8,9 @@ int pid[HANDLER_PROCESS];
 void connectClient(int clientfd);
 
 void handlerFin(int sig){
+	int i;
 	printf("[SHUTDOWN] KILLING PROCESS\n");
-	for(int i = 0; i < HANDLER_PROCESS;i++){
+	for(i = 0; i < HANDLER_PROCESS;i++){
 		kill(pid[i],SIGINT);
 		printf("[SHUTDOWN] PROCESS PID=%d KILLED\n", pid[i]);
 	}
@@ -48,7 +49,7 @@ void handle(int listenfd){
 int main(int argc, char **argv)
 {
 
-    int listenfd;
+    int listenfd, i;
     if (argc != 1) {
         fprintf(stderr, "usage: %s\n", argv[0]);
         exit(0);
@@ -59,7 +60,7 @@ int main(int argc, char **argv)
 	signal(SIGINT,handlerFin);
 
 	printf("[STARTING UP] LAUNCHING OF %d PROCESS\n", HANDLER_PROCESS);
-	for(int i = 0 ; i < HANDLER_PROCESS; i++){
+	for(i = 0 ; i < HANDLER_PROCESS; i++){
 		printf("[STARTING UP] LAUNCH PROCESS NUMBER %d\n", i);
 		if((pid[i] = fork()) == 0){
 			signal(SIGINT,SIG_DFL);
