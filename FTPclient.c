@@ -80,7 +80,7 @@ int checkAuthent(int slavefd, rio_t rio){
 			if(strlen(login) > 0){
 				printf("Password (Enter to quit):\n");
 				get_password(pwd);
-				if(strlen(pwd) > 1){
+				if(strlen(pwd) > 0){
 					sprintf(cmd, "AUTH %s %s\n", login, pwd);
 					Rio_writen(slavefd, cmd, strlen(cmd));
 					if(Rio_readlineb(&rio, cmd, 3) != 0){

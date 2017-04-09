@@ -66,8 +66,10 @@ void my_AUTH(char *login, char *password, int clientfd){
 				find = 1;
 		}
 	}
-	if (find)
+	if (find){
+		isConnect = 1;
 		Rio_writen(clientfd, "OK", strlen("OK"));
+	}
 	else
 		Rio_writen(clientfd, "KO", strlen("KO"));
 
@@ -120,7 +122,6 @@ void my_PUT(char * filename, int clientfd, rio_t rio){
 	size_t n;
 	int size_To_Read, transfered = 0;
 	FILE *fp;
-
 	/* Calcul de la taille du fichier a recuperer */
 	if((Rio_readlineb(&rio, buf, MAXLINE))!=0){
 		memcpy(size,buf,strlen(buf));
@@ -157,28 +158,42 @@ void connectClient(int clientfd)
 				keyword = strtok(NULL, " ");
 				my_GET(keyword, clientfd);
 			} else if(strcmp(keyword, "PUT")==0){
-				keyword = strtok(NULL, " ");
-				my_PUT(keyword, clientfd, rio);
+				if (isConnect){
+					keyword = strtok(NULL, " ");
+					my_PUT(keyword, clientfd, rio);
+				} else
+					send_Error("Permission denied\n", clientfd);
 			} else if(strcmp(keyword, "LS")==0)
 				my_LS(clientfd);
 			else if(strcmp(keyword, "PWD")==0)
 				my_PWD(clientfd);
 			else if(strcmp(keyword, "MKDIR")==0){
-				keyword = strtok(NULL, " ");
-				my_Simple_Command(mkdir(keyword, 0775), clientfd);
+				if (isConnect){
+					keyword = strtok(NULL, " ");
+					my_Simple_Command(mkdir(keyword, 0775), clientfd);
+				} else
+					send_Error("Permission denied\n", clientfd);
 			} else if(strcmp(keyword, "CD")==0){
 				keyword = strtok(NULL, " ");
 				my_Simple_Command(chdir(keyword), clientfd);
 			} else if(strcmp(keyword, "RM")==0){
-				keyword = strtok(NULL, " ");
-				my_Simple_Command(unlink(keyword), clientfd);
+				if (isConnect){
+					keyword = strtok(NULL, " ");
+					printf("keword=|%s|\n",keyword);
+					my_Simple_Command(unlink(keyword), clientfd);
+				} else
+					send_Error("Permission denied\n", clientfd);
 			} else if(strcmp(keyword, "RMR")==0){
-				keyword = strtok(NULL, " ");
-				my_Simple_Command(rmdir(keyword), clientfd);
+				if (isConnect){
+					keyword = strtok(NULL, " ");
+					my_Simple_Command(rmdir(keyword), clientfd);
+				} else
+					send_Error("Permission denied\n", clientfd);
 			} else if(strcmp(keyword, "AUTH")==0){
 				keyword = strtok(NULL, " ");
 				password = strtok(NULL, " ");
 				my_AUTH(keyword, password, clientfd);
+				memset(password,0,strlen(password));
 			} else if(strcmp(keyword,"BYE") == 0){
 			 	break;
 			}
