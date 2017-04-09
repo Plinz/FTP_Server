@@ -7,6 +7,8 @@
 
 #define BLOCK_SIZE 1000000
 
+int isConnect;
+
 void send_String(char* buf, int clientfd){
 	char size[MAXLINE];
 	sprintf(size, "%lu\n", strlen(buf));
@@ -49,6 +51,26 @@ void my_PWD(int clientfd){
 		send_Buffer(cwd, clientfd);
 	else
 		send_Error(strerror(errno), clientfd);
+}
+
+void my_AUTH(char *login, char *password, int clientfd){
+	char line[MAXLINE], *l, *p;
+	FILE *fp;
+	int find = 0;
+	if ((fp = fopen("users", "r")) != NULL){
+		while(!find && (fgets(line, sizeof(line), fp) != NULL)){
+			l = strtok(line, " ");
+			p = strtok(NULL, " ");
+			p[strlen(p)-1] = '\0';
+			if (!strcmp(l, login) && !strcmp(p, password))
+				find = 1;
+		}
+	}
+	if (find)
+		Rio_writen(clientfd, "OK", strlen("OK"));
+	else
+		Rio_writen(clientfd, "KO", strlen("KO"));
+
 }
 
 void my_Simple_Command(int size, int clientfd){
@@ -120,8 +142,10 @@ void my_PUT(char * filename, int clientfd, rio_t rio){
 void connectClient(int clientfd)
 {
     size_t bufContentSize;
-    char bufContent[MAXLINE], finput[MAXLINE], *keyword;
+    char bufContent[MAXLINE], finput[MAXLINE], *keyword, *password;
     rio_t rio;
+
+	isConnect = 0;
 
     Rio_readinitb(&rio, clientfd);
 	while (1){
@@ -151,6 +175,10 @@ void connectClient(int clientfd)
 			} else if(strcmp(keyword, "RMR")==0){
 				keyword = strtok(NULL, " ");
 				my_Simple_Command(rmdir(keyword), clientfd);
+			} else if(strcmp(keyword, "AUTH")==0){
+				keyword = strtok(NULL, " ");
+				password = strtok(NULL, " ");
+				my_AUTH(keyword, password, clientfd);
 			} else if(strcmp(keyword,"BYE") == 0){
 			 	break;
 			}

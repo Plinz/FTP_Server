@@ -2,10 +2,12 @@
 #include <string.h>
 #include <time.h>
 #include <libgen.h>
+#include <termios.h>
 
 #define BLOCK_SIZE 1000000
 
 char pwd_FTP[MAXLINE];
+int isConnect;
 
 void handleERROR(rio_t rio){
 	char buffer[MAXLINE];
@@ -40,6 +42,59 @@ void display_prompt() {
 
 void toLower(char* str){
 	for ( ; *str; ++str) *str = tolower(*str);
+}
+
+void get_password(char *password){
+    static struct termios old_terminal;
+    static struct termios new_terminal;
+
+    //get settings of the actual terminal
+    tcgetattr(STDIN_FILENO, &old_terminal);
+
+    // do not echo the characters
+    new_terminal = old_terminal;
+    new_terminal.c_lflag &= ~(ECHO);
+
+    // set this as the new terminal options
+    tcsetattr(STDIN_FILENO, TCSANOW, &new_terminal);
+
+    // get the password
+    if (fgets(password, BUFSIZ, stdin) == NULL)
+        password[0] = '\0';
+    else
+        password[strlen(password)-1] = '\0';
+
+    // go back to the old settings
+    tcsetattr(STDIN_FILENO, TCSANOW, &old_terminal);
+}
+
+int checkAuthent(int slavefd, rio_t rio){
+	char login[MAXLINE], pwd[MAXLINE], cmd[MAXLINE];
+
+	if(isConnect == 1)
+		return 1;
+	else {
+		printf("Permission denied, authentication required :\nLogin (Enter to quit):\n");
+		if (Fgets(login, MAXLINE, stdin) != NULL) {
+			login[strlen(login)-1] = '\0';
+			if(strlen(login) > 0){
+				printf("Password (Enter to quit):\n");
+				get_password(pwd);
+				if(strlen(pwd) > 1){
+					sprintf(cmd, "AUTH %s %s\n", login, pwd);
+					Rio_writen(slavefd, cmd, strlen(cmd));
+					if(Rio_readlineb(&rio, cmd, 3) != 0){
+						if (strcmp(cmd,"OK") == 0){
+							isConnect = 1;
+							return 1;
+						}
+					}
+				}
+			}
+		}
+	}
+	printf("Authentication failed\n");
+	return 0;
 }
 
 /* Affiche les informations à propos du transfert de fichier */
@@ -107,33 +162,36 @@ void handlePUT(char * filename,int slavefd,rio_t rio){
 	FILE *fp;
 	size_t bufContentSize = strlen(filename);
 
-	/* Construction de la commande à envoyer*/
-	sprintf(bufContent, "PUT %s\n", filename);
-	/* Envoi de la commande GET nom_fichier au serveur */
-	Rio_writen(slavefd, bufContent, strlen(bufContent));
+	if(checkAuthent(slavefd, rio)){
+
+		/* Construction de la commande à envoyer*/
+		sprintf(bufContent, "PUT %s\n", filename);
+		/* Envoi de la commande GET nom_fichier au serveur */
+		Rio_writen(slavefd, bufContent, strlen(bufContent));
 
 
-	int error = 0;
-    if ((fp = fopen(filename, "r")) != NULL){
+		int error = 0;
+	    if ((fp = fopen(filename, "r")) != NULL){
 
-    	fseek(fp, 0L, SEEK_END);
-    	taille = ftell(fp);
-	    rewind(fp);
-    	sprintf(size, "%d\n", taille);
-    	Rio_writen(slavefd, size, strlen(size));
-        filename = (char*) malloc(BLOCK_SIZE);
+	    	fseek(fp, 0L, SEEK_END);
+	    	taille = ftell(fp);
+		    rewind(fp);
+	    	sprintf(size, "%d\n", taille);
+	    	Rio_writen(slavefd, size, strlen(size));
+	        filename = (char*) malloc(BLOCK_SIZE);
 
-        while ((bufContentSize = fread(filename, sizeof(char), BLOCK_SIZE, fp)) > 0) {
-            if (!ferror(fp))
-                Rio_writen(slavefd, filename, bufContentSize);
-            else
-                Rio_writen(slavefd, "AN ERROR OCCURED DURING THE FILE READING\n", strlen("AN ERROR OCCURED DURING THE FILE READING\n"));
-        }
-    	free(filename);
-    } else
-        error = 1;
-    if (error)
-		printf("An error occured : %s\n", strerror(errno));
+	        while ((bufContentSize = fread(filename, sizeof(char), BLOCK_SIZE, fp)) > 0) {
+	            if (!ferror(fp))
+	                Rio_writen(slavefd, filename, bufContentSize);
+	            else
+	                Rio_writen(slavefd, "AN ERROR OCCURED DURING THE FILE READING\n", strlen("AN ERROR OCCURED DURING THE FILE READING\n"));
+	        }
+	    	free(filename);
+	    } else
+	        error = 1;
+	    if (error)
+			printf("An error occured : %s\n", strerror(errno));
+	}
 
 }
 
@@ -153,22 +211,26 @@ void handleCD(char* dir, int slavefd, rio_t rio){
 
 void handleRM(char* file, int slavefd, rio_t rio){
 	char cmd[MAXLINE];
-	sprintf(cmd, "RM %s\n", file);
 
-	Rio_writen(slavefd, cmd, strlen(cmd));
-	if(Rio_readlineb(&rio, cmd, 3) != 0)
-		if (strcmp(cmd,"KO") == 0)
-			handleERROR(rio);
+	if(checkAuthent(slavefd, rio)){
+		sprintf(cmd, "RM %s\n", file);
+		Rio_writen(slavefd, cmd, strlen(cmd));
+		if(Rio_readlineb(&rio, cmd, 3) != 0)
+			if (strcmp(cmd,"KO") == 0)
+				handleERROR(rio);
+	}
 }
 
 void handleRMR(char* dir, int slavefd, rio_t rio){
 	char cmd[MAXLINE];
-	sprintf(cmd, "RMR %s\n", dir);
 
-	Rio_writen(slavefd, cmd, strlen(cmd));
-	if(Rio_readlineb(&rio, cmd, 3) != 0)
-		if (strcmp(cmd,"KO") == 0)
-			handleERROR(rio);
+	if(checkAuthent(slavefd, rio)){
+		sprintf(cmd, "RMR %s\n", dir);
+		Rio_writen(slavefd, cmd, strlen(cmd));
+		if(Rio_readlineb(&rio, cmd, 3) != 0)
+			if (strcmp(cmd,"KO") == 0)
+				handleERROR(rio);
+	}
 }
 
 void handleBYE(int slavefd){
@@ -212,12 +274,14 @@ void handlePWD(int slavefd, rio_t rio){
 
 void handleMKDIR(char *dir, int slavefd, rio_t rio){
 	char cmd[MAXLINE];
-	sprintf(cmd, "MKDIR %s\n", dir);
 
-	Rio_writen(slavefd, cmd, strlen(cmd));
-	if(Rio_readlineb(&rio, cmd, 3) != 0)
-		if (strcmp(cmd,"KO") == 0)
-			handleERROR(rio);
+	if(checkAuthent(slavefd, rio)){
+		sprintf(cmd, "MKDIR %s\n", dir);
+		Rio_writen(slavefd, cmd, strlen(cmd));
+		if(Rio_readlineb(&rio, cmd, 3) != 0)
+			if (strcmp(cmd,"KO") == 0)
+				handleERROR(rio);
+	}
 }
 
 
@@ -234,6 +298,7 @@ int main(int argc, char **argv)
 		exit(0);
 	}
 	master = argv[1];
+	isConnect = 0;
 
 	Open_clientfd(master, 2121);
 	listenfd = Open_listenfd(2123);
@@ -272,6 +337,9 @@ int main(int argc, char **argv)
 				handleRMR(keyword, slavefd, rio);
 			} else
 				handleRM(keyword, slavefd, rio);
+		} else if(strcmp(keyword,"mkdir") == 0){
+			keyword = strtok(NULL, " ");
+			handleMKDIR(keyword, slavefd, rio);
 		} else if(strcmp(keyword,"bye") == 0){
 			handleBYE(slavefd);
 			exit(0);
