@@ -179,7 +179,6 @@ void connectClient(int clientfd)
 			} else if(strcmp(keyword, "RM")==0){
 				if (isConnect){
 					keyword = strtok(NULL, " ");
-					printf("keword=|%s|\n",keyword);
 					my_Simple_Command(unlink(keyword), clientfd);
 				} else
 					send_Error("Permission denied\n", clientfd);
