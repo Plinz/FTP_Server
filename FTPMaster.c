@@ -2,8 +2,8 @@
 
 #define MAX_NAME_LEN 256
 #define SLAVES_PROPERTIES "slaves.properties"
-#define NB_SLAVES 3
-#define HANDLER_PROCESS 5
+#define NB_SLAVES 2
+#define HANDLER_PROCESS 1
 
 int pid[HANDLER_PROCESS];
 
@@ -102,7 +102,6 @@ void handle(int listenfd, char** slaves){
 	while(1){
 		while((clientfd = Accept(listenfd, (SA *)&clientaddr, &clientlen)) == -1){}
 		Getnameinfo((SA *) &clientaddr, clientlen, client_hostname, MAX_NAME_LEN, 0, 0, 0);
-
 		printf("[RUNNING] NEW CONNEXION : HOSTNAME : %s HANDLE BY %s\n", client_hostname, slaves[nextSlaves]);
 
 		// for(int i=0; i<NB_SLAVES; i++){
@@ -117,9 +116,10 @@ void handle(int listenfd, char** slaves){
 		}
 		else {
 			Close(clientfd);
-			slavefd = Open_clientfd(slaves[nextSlaves++], 2122);
+			slavefd = Open_clientfd(slaves[nextSlaves], 2122);
 			Rio_writen(slavefd, client_hostname, strlen(client_hostname));
 			Close(slavefd);
+			nextSlaves = nextSlaves+1;
 			if(nextSlaves == NB_SLAVES)
 				nextSlaves = 0;
 		}

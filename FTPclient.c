@@ -1,3 +1,4 @@
+#define _XOPEN_SOURCE
 #include "csapp.h"
 #include <string.h>
 #include <time.h>
