@@ -104,12 +104,12 @@ void handle(int listenfd, char** slaves){
 		Getnameinfo((SA *) &clientaddr, clientlen, client_hostname, MAX_NAME_LEN, 0, 0, 0);
 		printf("[RUNNING] NEW CONNEXION : HOSTNAME : %s HANDLE BY %s\n", client_hostname, slaves[nextSlaves]);
 
-		// for(int i=0; i<NB_SLAVES; i++){
-		// 	if (strcmp(slaves[i], client_hostname) == 0){
-		// 		is_Slave = 1;
-		// 		break;
-		// 	}
-		// }
+		for(int i=0; i<NB_SLAVES; i++){
+			if (strcmp(slaves[i], client_hostname) == 0){
+				is_Slave = 1;
+				break;
+			}
+		}
 		if (is_Slave){
 			synchronize_Slaves(clientfd, client_hostname, slaves);
 			Close(clientfd);

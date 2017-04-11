@@ -7,7 +7,7 @@
 int pid[HANDLER_PROCESS];
 int clientfd;
 
-void connectClient(int clientfd);
+void connectClient(int clientfd, char* masterHost);
 
 void handlerParent(int sig){
 	int i;
@@ -47,10 +47,10 @@ void handle(int listenfd, int index){
 	    bufContent = (char*) malloc(MAXLINE);
 	    Rio_readinitb(&rio, masterfd);
 	    if ((bufContentSize = Rio_readlineb(&rio, bufContent, MAXLINE)) != 0) {
-			printf("[RUNNING][%d] NEW CONNEXION : HOSTNAME : %s\n", getpid(), bufContent);
-			connectClient(clientfd = Open_clientfd(bufContent, 2123));
-			Close(clientfd);
-			clientfd = -1;
+		printf("[RUNNING][%d] NEW CONNEXION : HOSTNAME : %s\n", getpid(), bufContent);
+		connectClient((clientfd = Open_clientfd(bufContent, 2123)), client_hostname);
+		Close(clientfd);
+		clientfd = -1;
 	        free(bufContent);
 	    }
 	}

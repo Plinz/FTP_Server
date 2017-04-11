@@ -75,11 +75,14 @@ void my_AUTH(char *login, char *password, int clientfd){
 
 }
 
-void my_Simple_Command(int size, int clientfd){
-	if (size == 0)
+int my_Simple_Command(int size, int clientfd){
+	if (size == 0){
 		Rio_writen(clientfd, "OK", strlen("OK"));
-	else
+		return strlen("OK");
+	} else{
 		send_Error(strerror(errno), clientfd);
+		return -1;
+	}
 }
 
 void my_GET(char * bufContent,int clientfd){
@@ -95,7 +98,7 @@ void my_GET(char * bufContent,int clientfd){
 
     	if (fseek(fp, 0L, SEEK_END) == 0){
 	    	if ((taille = ftell(fp)) != -1){
-			    rewind(fp);
+			rewind(fp);
 		    	sprintf(size, "%d\n", taille);
 		    	Rio_writen(clientfd, size, strlen(size));
 		        bufContent = (char*) malloc(BLOCK_SIZE);
@@ -116,7 +119,7 @@ void my_GET(char * bufContent,int clientfd){
 	free(bufContent);
 }
 
-void my_PUT(char * filename, int clientfd, rio_t rio){
+int my_PUT(char * filename, int clientfd, rio_t rio){
 
 	char buf[MAXLINE],size[MAXLINE];
 	size_t n;
@@ -134,13 +137,24 @@ void my_PUT(char * filename, int clientfd, rio_t rio){
 				transfered += n;
 			}
 			fclose(fp);
+			return transfered;
 		} else
 			send_Error(strerror(errno), clientfd);
 	}
+	return -1;
+}
+
+void synchronize(char *command, char *keyword, char *masterHost){
+	char syncro[MAXLINE], cwd[MAXLINE];
+
+	sprintf(syncro, "%s %s/%s\n", command, getcwd(cwd, sizeof(cwd)), keyword);
+	int masterfd = Open_clientfd(masterHost, 2121);
+	Rio_writen(masterfd, syncro, strlen(syncro));
+	Close(masterfd);
 }
 
 
-void connectClient(int clientfd)
+void connectClient(int clientfd, char* masterHost)
 {
     size_t bufContentSize;
     char bufContent[MAXLINE], finput[MAXLINE], *keyword, *password;
@@ -160,7 +174,8 @@ void connectClient(int clientfd)
 			} else if(strcmp(keyword, "PUT")==0){
 				if (isConnect){
 					keyword = strtok(NULL, " ");
-					my_PUT(keyword, clientfd, rio);
+					if (my_PUT(keyword, clientfd, rio) != -1)
+						synchronize("PUT", keyword, masterHost);
 				} else
 					send_Error("Permission denied\n", clientfd);
 			} else if(strcmp(keyword, "LS")==0)
@@ -170,7 +185,8 @@ void connectClient(int clientfd)
 			else if(strcmp(keyword, "MKDIR")==0){
 				if (isConnect){
 					keyword = strtok(NULL, " ");
-					my_Simple_Command(mkdir(keyword, 0775), clientfd);
+					if (my_Simple_Command(mkdir(keyword, 0775), clientfd) != -1)
+						synchronize("MKDIR", keyword, masterHost);
 				} else
 					send_Error("Permission denied\n", clientfd);
 			} else if(strcmp(keyword, "CD")==0){
@@ -179,13 +195,15 @@ void connectClient(int clientfd)
 			} else if(strcmp(keyword, "RM")==0){
 				if (isConnect){
 					keyword = strtok(NULL, " ");
-					my_Simple_Command(unlink(keyword), clientfd);
+					if (my_Simple_Command(unlink(keyword), clientfd) != -1)
+						synchronize("RM", keyword, masterHost);
 				} else
 					send_Error("Permission denied\n", clientfd);
 			} else if(strcmp(keyword, "RMR")==0){
 				if (isConnect){
 					keyword = strtok(NULL, " ");
-					my_Simple_Command(rmdir(keyword), clientfd);
+					if (my_Simple_Command(rmdir(keyword), clientfd) != -1)
+						synchronize("RMR", keyword, masterHost);
 				} else
 					send_Error("Permission denied\n", clientfd);
 			} else if(strcmp(keyword, "AUTH")==0){
