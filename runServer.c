@@ -144,12 +144,12 @@ int my_PUT(char * filename, int clientfd, rio_t rio){
 	return -1;
 }
 
-void synchronize(char *command, char *keyword, char *masterHost){
+void synchronize(char *command, char *keyword, char *masterIP){
 	char syncro[MAXLINE], cwd[MAXLINE];
 
 	sprintf(syncro, "MASTER %s %s/%s\n", command, getcwd(cwd, sizeof(cwd)), keyword);
-	printf("SYNCRO : to:%s|",masterHost);
-	int masterfd = Open_clientfd(masterHost, 2121);
+	printf("SYNCRO : to:%s|\n",masterIP);
+	int masterfd = Open_clientfd(masterIP, 2121);
 	Rio_writen(masterfd, syncro, strlen(syncro));
 	Close(masterfd);
 }

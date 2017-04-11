@@ -47,8 +47,8 @@ void handle(int listenfd, int index){
 	    bufContent = (char*) malloc(MAXLINE);
 	    Rio_readinitb(&rio, masterfd);
 	    if ((bufContentSize = Rio_readlineb(&rio, bufContent, MAXLINE)) != 0) {
-		printf("[RUNNING][%d] NEW CONNEXION : HOSTNAME : %s\n", getpid(), bufContent);
-		connectClient((clientfd = Open_clientfd(bufContent, 2123)), client_hostname);
+		printf("[RUNNING][%d] NEW CONNEXION : HOSTNAME : %s IP : %s\n", getpid(), bufContent, client_ip_string);
+		connectClient((clientfd = Open_clientfd(bufContent, 2123)), client_ip_string);
 		Close(clientfd);
 		clientfd = -1;
 	        free(bufContent);
