@@ -84,7 +84,7 @@ void synchronize_Single_Slave(char* slave_Hostname, char* bufContent, size_t buf
 	struct sockaddr_in slaveaddr;
 	socklen_t slavelen = (socklen_t)sizeof(slaveaddr);
 
-	char *hostname = getIP();
+	char hostname[1024];
 	gethostname(hostname, 1024);
 	slavefd = Open_clientfd(slave_Hostname, 2122);
 	Rio_writen(slavefd, hostname, strlen(hostname));
