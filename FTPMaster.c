@@ -102,7 +102,6 @@ void handle(int listenfd, char** slaves){
 	while(1){
 		while((clientfd = Accept(listenfd, (SA *)&clientaddr, &clientlen)) == -1){}
 		Getnameinfo((SA *) &clientaddr, clientlen, client_hostname, MAX_NAME_LEN, 0, 0, 0);
-		printf("[RUNNING] NEW CONNEXION : HOSTNAME : %s HANDLE BY %s\n", client_hostname, slaves[nextSlaves]);
 
 		for(int i=0; i<NB_SLAVES; i++){
 			if (strcmp(slaves[i], client_hostname) == 0){
@@ -111,10 +110,12 @@ void handle(int listenfd, char** slaves){
 			}
 		}
 		if (is_Slave){
+			printf("[RUNNING] SYNCHRONIZE FROM SLAVE : %s\n", client_hostname);
 			synchronize_Slaves(clientfd, client_hostname, slaves);
 			Close(clientfd);
 		}
 		else {
+			printf("[RUNNING] NEW CONNEXION : HOSTNAME : %s HANDLE BY %s\n", client_hostname, slaves[nextSlaves]);
 			Close(clientfd);
 			slavefd = Open_clientfd(slaves[nextSlaves], 2122);
 			Rio_writen(slavefd, client_hostname, strlen(client_hostname));
