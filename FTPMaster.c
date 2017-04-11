@@ -1,4 +1,13 @@
 #include "csapp.h"
+#include <stdio.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <netinet/in.h>
+#include <net/if.h>
+#include <unistd.h>
+#include <arpa/inet.h>
 
 #define MAX_NAME_LEN 256
 #define SLAVES_PROPERTIES "slaves.properties"
@@ -18,6 +27,20 @@ void handlerFin(int sig){
 	}
 	printf("[SHUTDOWN] SHUTDOWN\n");
 	exit(0);
+}
+
+char* getIP(){
+    int fd;
+    struct ifreq ifr;
+     
+    char iface[] = "eth0";
+    fd = socket(AF_INET, SOCK_DGRAM, 0);
+    ifr.ifr_addr.sa_family = AF_INET;
+    strncpy(ifr.ifr_name , iface , IFNAMSIZ-1);
+    ioctl(fd, SIOCGIFADDR, &ifr);
+    close(fd);
+ 
+    return inet_ntoa(( (struct sockaddr_in *)&ifr.ifr_addr )->sin_addr);
 }
 
 char ** loadSlavesProperties(){
@@ -61,16 +84,14 @@ void synchronize_Single_Slave(char* slave_Hostname, char* bufContent, size_t buf
 	struct sockaddr_in slaveaddr;
 	socklen_t slavelen = (socklen_t)sizeof(slaveaddr);
 
-	char hostname[1024], *cmd;
+	char *hostname = getIP();
 	gethostname(hostname, 1024);
 	slavefd = Open_clientfd(slave_Hostname, 2122);
 	Rio_writen(slavefd, hostname, strlen(hostname));
 	listenfd = Open_listenfd(2123);
 	while((slavefd = Accept(listenfd, (SA *)&slaveaddr, &slavelen)) == -1){}
-	cmd = strtok(bufContent, "  ");
-	while (cmd != NULL){
-		Rio_writen(slavefd, cmd, strlen(cmd));
-	}
+	Rio_writen(slavefd, bufContent, bufContentSize-1);
+	Rio_writen(slavefd, "BYE", strlen("BYE"));
 }
 
 void synchronize_Slaves (int slavefd, char* slave_Source, char** slaves){

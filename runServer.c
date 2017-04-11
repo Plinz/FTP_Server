@@ -147,7 +147,7 @@ int my_PUT(char * filename, int clientfd, rio_t rio){
 void synchronize(char *command, char *keyword, char *masterHost){
 	char syncro[MAXLINE], cwd[MAXLINE];
 
-	sprintf(syncro, "%s %s/%s\n", command, getcwd(cwd, sizeof(cwd)), keyword);
+	sprintf(syncro, "MASTER %s %s/%s\n", command, getcwd(cwd, sizeof(cwd)), keyword);
 	int masterfd = Open_clientfd(masterHost, 2121);
 	Rio_writen(masterfd, syncro, strlen(syncro));
 	Close(masterfd);
@@ -159,8 +159,9 @@ void connectClient(int clientfd, char* masterHost)
     size_t bufContentSize;
     char bufContent[MAXLINE], finput[MAXLINE], *keyword, *password;
     rio_t rio;
-
-	isConnect = 0;
+    int isMaster = 0;
+    isConnect = 0;
+    
 
     Rio_readinitb(&rio, clientfd);
 	while (1){
@@ -168,13 +169,18 @@ void connectClient(int clientfd, char* masterHost)
 			printf("[RUNNING][%d] SIZE : %luB CONTENT : %s", getpid(), bufContentSize, bufContent);
 			strncpy(finput,bufContent,strlen(bufContent)-1);
 			keyword = strtok(finput, " ");
+			
+			if(strcmp(keyword, "MASTER")==0){
+				isMaster = 1;
+				keyword = strtok(NULL, " ");
+			}			
 			if(strcmp(keyword, "GET")==0){
 				keyword = strtok(NULL, " ");
 				my_GET(keyword, clientfd);
 			} else if(strcmp(keyword, "PUT")==0){
 				if (isConnect){
 					keyword = strtok(NULL, " ");
-					if (my_PUT(keyword, clientfd, rio) != -1)
+					if (my_PUT(keyword, clientfd, rio) != -1 && !isMaster)
 						synchronize("PUT", keyword, masterHost);
 				} else
 					send_Error("Permission denied\n", clientfd);
@@ -185,7 +191,7 @@ void connectClient(int clientfd, char* masterHost)
 			else if(strcmp(keyword, "MKDIR")==0){
 				if (isConnect){
 					keyword = strtok(NULL, " ");
-					if (my_Simple_Command(mkdir(keyword, 0775), clientfd) != -1)
+					if (my_Simple_Command(mkdir(keyword, 0775), clientfd) != -1 && !isMaster)
 						synchronize("MKDIR", keyword, masterHost);
 				} else
 					send_Error("Permission denied\n", clientfd);
@@ -195,14 +201,14 @@ void connectClient(int clientfd, char* masterHost)
 			} else if(strcmp(keyword, "RM")==0){
 				if (isConnect){
 					keyword = strtok(NULL, " ");
-					if (my_Simple_Command(unlink(keyword), clientfd) != -1)
+					if (my_Simple_Command(unlink(keyword), clientfd) != -1 && !isMaster)
 						synchronize("RM", keyword, masterHost);
 				} else
 					send_Error("Permission denied\n", clientfd);
 			} else if(strcmp(keyword, "RMR")==0){
 				if (isConnect){
 					keyword = strtok(NULL, " ");
-					if (my_Simple_Command(rmdir(keyword), clientfd) != -1)
+					if (my_Simple_Command(rmdir(keyword), clientfd) != -1 && !isMaster)
 						synchronize("RMR", keyword, masterHost);
 				} else
 					send_Error("Permission denied\n", clientfd);
